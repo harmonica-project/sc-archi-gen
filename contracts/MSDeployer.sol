@@ -35,7 +35,7 @@ contract Microservice {
         }
     }
 
-    function _run() public {
+    function runOperations() public {
         this._run_instructions();
         this._run_read();
         this._run_write();
