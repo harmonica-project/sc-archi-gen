@@ -1,5 +1,6 @@
 var Deployer = artifacts.require("Deployer");
 var Microservice = artifacts.require("Microservice");
+const {performance} = require('perf_hooks');
 
 var components = {}
 
@@ -82,8 +83,11 @@ function getBPMNComponents(bpmn) {
 
 //runBPMN
 //- resolve the BPMN by launching every microservices tasks
-function runBPMN(microservices) {
-    runTask("START", microservices);
+async function runBPMN(microservices) {
+    var tStart = performance.now();
+    await runTask("START", microservices);
+    var tEnd = performance.now();
+    console.log("BPMN resolution took " + (tEnd - tStart) + " ms.")
 }
 
 function checkPrerequisites(name) {
@@ -97,18 +101,28 @@ function checkPrerequisites(name) {
 }
 
 async function runTask(name, microservices) {
-    if(!components[name].done) {
-        console.log(name);
-        while(!checkPrerequisites(name));
-        components[name].done = true;
-        
-        if(components[name].himself.type === "choreographyTask") {
-            await runMicroservice(microservices[name]);
+    return new Promise(async function(resolve) {
+        if(!components[name].done) {
+            while(!checkPrerequisites(name));
+            components[name].done = true;
+    
+            if(components[name].himself.type === "choreographyTask") {
+                var tStart = performance.now();
+                await runMicroservice(microservices[name]);
+                var tEnd = performance.now();
+                console.log("Microservice " + name + " call took " + (tEnd - tStart) + " ms.")
+            }
         }
-    }
-
-    components[name].targets.forEach(t => {
-        runTask(t, microservices);
+    
+        var nextTasks = [];
+    
+        components[name].targets.forEach(t => {
+            nextTasks.push(runTask(t, microservices));
+        });
+    
+        Promise.all(nextTasks).then(function() {
+            resolve(true);
+        });
     });
 }
 
@@ -130,8 +144,6 @@ module.exports = async function() {
         let microservices = await generateMicroservices(inst, bpmn);
         getBPMNComponents(bpmn);
         runBPMN(microservices);
-
-        setTimeout(() => {console.log(components)}, 5000)
     }
     catch(e) {
         console.log(e)
