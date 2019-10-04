@@ -148,6 +148,7 @@ module.exports = async function() {
         let microservices = await generateMicroservices(inst, bpmn);
         getBPMNComponents(bpmn);
         runBPMN(microservices);
+        return;
     }
     catch(e) {
         console.log(e)
