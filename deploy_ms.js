@@ -90,6 +90,8 @@ async function runBPMN(microservices) {
     console.log("BPMN resolution took " + (tEnd - tStart) + " ms.")
 }
 
+//checkPrerequisites
+//- check if all steps before another are done
 function checkPrerequisites(name) {
     components[name].prerequisites.forEach(p => {
         if(!components[p].done) {
@@ -100,6 +102,8 @@ function checkPrerequisites(name) {
     return true;
 }
 
+//runTask
+//- run a task by checking its prerequisites, execute it if it is a task and launch tasks after this one
 async function runTask(name, microservices) {
     return new Promise(async function(resolve) {
         if(!components[name].done) {
