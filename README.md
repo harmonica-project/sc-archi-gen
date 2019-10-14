@@ -15,7 +15,7 @@ For now, the benchmark executes every step of the BPMN but the goal is to benchm
 
 ## How to launch the benchmark
 
-Just execute the script run.sh:
+Just execute the run.sh script:
 
 ```
 ./run.sh
