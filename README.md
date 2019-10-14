@@ -12,3 +12,11 @@ For now, the benchmark executes every step of the BPMN but the goal is to benchm
 - node.js
 - solidity (v > 5.x)
 - ganache-cli
+
+## How to launch the benchmark
+
+Just execute the script run.sh:
+
+```
+./run.sh
+```
