@@ -1,0 +1,22 @@
+{
+  "name": "sc-archi-gen",
+  "version": "1.0.0",
+  "description": "## Introduction",
+  "main": "run.sh",
+  "scripts": {
+    "test": "./run.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicoSix/sc-archi-gen.git"
+  },
+  "author": "Nicolas Six",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nicoSix/sc-archi-gen/issues"
+  },
+  "homepage": "https://github.com/nicoSix/sc-archi-gen#readme",
+  "dependencies": {
+    "ssh2": "^0.8.5"
+  }
+}

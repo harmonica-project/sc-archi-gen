@@ -1,2 +1,4 @@
 /build
 /benchmarks/*
+/node_modules
+/ethereum/datadir/keystore/*
