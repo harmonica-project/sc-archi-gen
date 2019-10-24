@@ -114,6 +114,8 @@ function getBPMNJson() {
     return bpmns;
 }
 
+////////////////////////////////////////
+
 bpmns = getBPMNJson();
 
 bpmns.forEach(bpmn => {    

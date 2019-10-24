@@ -1,9 +1,8 @@
 pragma solidity >0.5.0;
-pragma experimental ABIEncoderV2;
 
 contract Microservice {
     string private _name;
-    byte[] private _dummy_array;
+    bytes1[] private _dummy_array;
 
     constructor(string memory name) public {
         _name = name;
@@ -38,30 +37,14 @@ contract Microservice {
 
 contract Deployer {
     mapping(string => Microservice) private _microservices;
-    string[] private _deployed_microservices;
 
     function set_microservice(string memory name) public returns (address) {
         _microservices[name] = new Microservice(name);
-        _deployed_microservices.push(name);
         return address(_microservices[name]);
-    }
-
-    function unset_microservice(string memory name) public {
-        delete _microservices[name];
-        for(uint i=0; i<_deployed_microservices.length; i++) {
-            if(cmp_str(_deployed_microservices[i], name)) {
-                delete _deployed_microservices[i];
-                break;
-            }
-        }
     }
 
     function get_microservice_address(string memory name) public view returns (address) {
         return address(_microservices[name]);
-    }
-
-    function get_microservices_names() public view returns (string[] memory) {
-        return _deployed_microservices;
     }
     
     function cmp_str(string memory a, string memory b) public pure returns (bool) {

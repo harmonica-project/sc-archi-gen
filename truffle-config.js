@@ -52,10 +52,8 @@ module.exports = {
 
     vagrant: {
       host: "10.0.0.11",     // Localhost (default: none)
-      port: 7545,            // Standard Ethereum port (default: none)
-      network_id: "5777",       // Any network (default: none)
-      gas: 4503599627370495,
-      gasPrice: 0
+      port: 8545,            // Standard Ethereum port (default: none)
+      network_id: "666",       // Any network (default: none)
     },
 
     // Another network with more advanced options...

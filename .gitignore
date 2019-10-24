@@ -1,4 +1,7 @@
 /build
 /benchmarks/*
+/results/*
 /node_modules
 /ethereum/datadir/keystore/*
+*.log
+/ethereum/genesis.json
