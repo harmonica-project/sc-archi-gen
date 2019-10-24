@@ -5,3 +5,4 @@
 /ethereum/datadir/keystore/*
 *.log
 /ethereum/genesis.json
+/vagrant/.vagrant
