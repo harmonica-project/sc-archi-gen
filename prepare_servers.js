@@ -7,12 +7,14 @@ var machines = require('./ip_list.json');
 
 async function setupMachines() {
     for(var i = 0; i < machines.length; i++) {
-        await setupMachine(machines[i]);
+        await setupMachine(machines[i], i);
     }
+    console.log(machines)
 }
 
 function createAccountAndGenesis() {
     for(var i = 0; i < machines.length; i++) {
+        console.log("Creating key " + i + " ...")
         execSync('geth account new --datadir ./ethereum/datadir --password ./ethereum/password', { encoding: 'utf-8' });
         var file = fs.readdirSync('./ethereum/datadir/keystore')[i];
         var keystore = fs.readFileSync('./ethereum/datadir/keystore/' + file, "utf8");
@@ -26,25 +28,28 @@ function createAccountAndGenesis() {
     fs.writeFileSync("./ethereum/genesis.json", JSON.stringify(genesis)); 
 }
 
-function setupMachine(machine) {
-    return new Promise(function(resolve, reject) {
+function setupMachine(machine, i) {
+    return new Promise(function (resolve, reject) {
+        console.log("Machine " + machine.ip + " setup ...")
         var conn = new Client();
 
         conn.on('keyboard-interactive', function (name, instructions, instructionsLang, prompts, finish, machine) {
             finish(machine.password);
         })
         
-        conn.on('ready', function () {
-            setupDirectory(conn)
-            .then(transferEthFiles(conn, machine))
-            .then(initEthDatabase(conn))
-            .then(initBootnodeOnFirstNode(conn, machine))
-            .then(function () {
-                conn.end();
-                resolve(true);
-            })
+        conn.on('ready', async function () {
+            await setupDirectory(conn, machine);
+            await transferEthFiles(conn, i);
+            await initEthDatabase(conn, machine);
+            await initBootnodeOnFirstNode(conn, machine, i);
+            await genBootnodeEnodeAddr(conn, machine, i);
+            await launchBootnodeOnFirstNode(conn, machine, i);
+            await launchNode(conn, machine);
+    
+            conn.end();
+            resolve(true);
         })
-
+    
         conn.connect({
                 host: machine.ip,
                 username: machine.user,
@@ -52,52 +57,142 @@ function setupMachine(machine) {
                 port: 22,
                 readyTimeout: 100000
         });
+    });
+}
+
+function setupDirectory(conn, machine) {
+    return new Promise(function(resolve, reject) {
+        conn.exec('rm -rf /home/vagrant/datadir /home/vagrant/genesis.json /home/vagrant/boot.key ; mkdir -p /home/vagrant/datadir/keystore ; killall -9 bootnode ; killall -9 geth', function(err, stream) {
+            if(err) {
+                console.error(err);
+                reject(false);
+            }
+            else {
+                stream.on('close', function() {
+                    resolve(true); 
+                }).on('data', function(data) {
+                    console.log('Machine ' + machine.ip + ': ' + data);
+                  }).stderr.on('data', function(data) {
+                    console.log('Machine ' + machine.ip + ': ' + data);
+                  });
+            }
+        });
+    });
+}
+
+function initEthDatabase(conn, machine) {
+    return new Promise(function(resolve, reject) {
+        conn.exec('geth --datadir /home/vagrant/datadir init /home/vagrant/genesis.json', function(err, stream) {
+            if(err) {
+                console.error(err);
+                reject(false);
+            }
+            else {
+                stream.on('close', function() {
+                    resolve(true); 
+                }).on('data', function(data) {
+                  }).stderr.on('data', function(data) {
+                    console.log('Machine ' + machine.ip + ': ' + data);
+                  });
+            }
+        });
+    });
+}
+
+function launchNode(conn, machine) {
+    console.log('Launching node on '  + machine.ip)
+    return new Promise(function(resolve, reject) {
+        conn.exec('nohup geth --datadir "/home/vagrant/datadir" --networkid 666 --bootnodes ' + machines[0].enode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner" --allow-insecure-unlock --mine --miner.threads 10 &>/dev/null &', function(err) {
+            if(err) {
+                console.error(err);
+                reject(false);
+            }
+            else {
+                conn.exec('disown', function(err, stream) {
+                    if(err) {
+                        console.error(err);
+                        reject(false);
+                    }
+                    else {
+                        stream.on('close', function() {
+                            resolve(true); 
+                        }).on('data', function(data) {
+                            resolve(true); 
+                        });
+                    }
+                });
+            }
+        });
     })
 }
 
-function setupDirectory(conn) {
+function initBootnodeOnFirstNode(conn, machine, i) {
     return new Promise(function(resolve, reject) {
-        conn.exec('rm -rf datadir genesis.json boot.key && mkdir -p /home/vagrant/datadir/keystore', function(err) {
-            if(err) {
-                console.error(err);
-                reject(false);
-            }
-            else resolve(true);
-        });
-    });
-}
-
-function initEthDatabase(conn) {
-    return new Promise(function(resolve, reject) {
-        conn.exec('geth --datadir .datadir init genesis.json', function(err) {
-            if(err) {
-                console.error(err);
-                reject(false);
-            }
-            else resolve(true);
-        });
-    });
-}
-
-function initBootnodeOnFirstNode(conn, machine) {
-    return new Promise(function(resolve, reject) {
-        if(machine.id == 0) {
-            conn.exec('bootnode --genkey=boot.key', function(err) {
+        if(i == 0) {
+            conn.exec('bootnode --genkey=/home/vagrant/boot.key', function(err, stream) {
                 if(err) {
                     console.error(err);
                     reject(false);
                 }
                 else {
-                    conn.exec('bootnode --nodekey=boot.key -addr ' + machine.ip + ':30300', function(err, stream) {
+                    stream.on('close', function() {
+                        resolve(true); 
+                    }).on('data', function(data) {
+                        console.log('Machine ' + machine.ip + ': ' + data);
+                      }).stderr.on('data', function(data) {
+                        console.log('Machine ' + machine.ip + ': ' + data);
+                      });
+                }
+            });
+        }
+        else {
+            resolve(true);
+        }
+    })
+}
+
+function genBootnodeEnodeAddr(conn, machine, i) {
+    return new Promise(function(resolve, reject) {
+        if(i == 0) {
+            conn.exec('bootnode --nodekey=/home/vagrant/boot.key -writeaddress', function(err, stream) {
+                if(err) {
+                    console.error(err);
+                    reject(false);
+                }
+                else {
+                    stream.on('data', function(data) {
+                        machines[0]["enode"] = 'enode://' + data.toString().replace('\n','') + '@' + machine.ip + ':0?discport=30300';
+                        resolve(true); 
+                      })
+                }
+            });
+        }
+        else {
+            resolve(true);
+        }
+    })
+}
+
+function launchBootnodeOnFirstNode(conn, machine, i) {
+    return new Promise(function(resolve, reject) {
+        if(i == 0) {
+            conn.exec('nohup bootnode --nodekey=/home/vagrant/boot.key -addr ' + machine.ip + ':30300 &>/dev/null &', function(err) {
+                if(err) {
+                    console.error(err);
+                    reject(false);
+                }
+                else {
+                    conn.exec('disown', function(err, stream) {
                         if(err) {
                             console.error(err);
                             reject(false);
                         }
                         else {
-                            stream.on('data', function(data) {
-                                console.log('STDOUT: ' + data);      
-                            })
-                            resolve(true);
+                            stream.on('close', function() {
+                                resolve(true); 
+                            }).on('data', function(data) {
+                                resolve(true); 
+                            });
                         }
                     });
                 }
@@ -109,12 +204,12 @@ function initBootnodeOnFirstNode(conn, machine) {
     })
 }
 
-function transferEthFiles(conn, machine) {
+function transferEthFiles(conn, i) {
     return new Promise(function(resolve, reject) {
         conn.sftp(function(err, sftp) {
             var files = fs.readdirSync('./ethereum/datadir/keystore');
             
-            sftp.fastPut('./ethereum/datadir/keystore/' + files[machine.id], '/home/vagrant/datadir/keystore/key.json', function(err) {
+            sftp.fastPut('./ethereum/datadir/keystore/' + files[i], '/home/vagrant/datadir/keystore/key.json', function(err) {
                 if(err) {
                     console.error(err);
                     reject(false);

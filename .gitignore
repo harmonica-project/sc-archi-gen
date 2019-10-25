@@ -6,3 +6,4 @@
 *.log
 /ethereum/genesis.json
 /vagrant/.vagrant
+ip_list.json
