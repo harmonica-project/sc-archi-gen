@@ -45,7 +45,8 @@ function setupMachine(machine, i) {
             await genBootnodeEnodeAddr(conn, machine, i);
             await launchBootnodeOnFirstNode(conn, machine, i);
             await launchNode(conn, machine);
-    
+            await unlockAndBindAccount(conn, machine, i);
+
             conn.end();
             resolve(true);
         })
@@ -102,7 +103,7 @@ function initEthDatabase(conn, machine) {
 function launchNode(conn, machine) {
     console.log('Launching node on '  + machine.ip)
     return new Promise(function(resolve, reject) {
-        conn.exec('nohup geth --datadir "/home/vagrant/datadir" --networkid 666 --bootnodes ' + machines[0].enode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner" --allow-insecure-unlock --mine --miner.threads 10 &>/dev/null &', function(err) {
+        conn.exec('nohup geth --datadir "/home/vagrant/datadir" --networkid 666 --bootnodes ' + machines[0].bootnode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --mine --miner.threads 10 &>/dev/null &', function(err) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -161,7 +162,7 @@ function genBootnodeEnodeAddr(conn, machine, i) {
                 }
                 else {
                     stream.on('data', function(data) {
-                        machines[0]["enode"] = 'enode://' + data.toString().replace('\n','') + '@' + machine.ip + ':0?discport=30300';
+                        machines[0]["bootnode"] = 'enode://' + data.toString().replace('\n','') + '@' + machine.ip + ':0?discport=30300';
                         resolve(true); 
                       })
                 }
@@ -229,6 +230,31 @@ function transferEthFiles(conn, i) {
             });
         });
     });
+}
+
+function unlockAndBindAccount(conn, machine, i) {
+    return new Promise(function(resolve, reject) {
+        conn.exec('geth --exec "personal.listAccounts" attach http://' + machine.ip + ':8545', function(err, stream) {
+                if(err) {
+                    console.error(err);
+                    reject(false);
+                }
+                else {
+                    stream.on('data', function(data) {
+                        machines[i]["address"] = JSON.parse(data.toString().replace('\n', ''))[0];
+                        conn.exec('geth --exec "personal.unlockAccount(\'' + machines[i]["address"] + '\', \'password\', 999999)" attach http://' + machine.ip + ':8545', function(err, stream) {
+                            if(err) {
+                                console.error(err);
+                                reject(false);
+                            }
+                            else {
+                                resolve(true); 
+                            }
+                        });
+                    })
+                }
+            });
+    })
 }
 
 ////////////////////////////////////////

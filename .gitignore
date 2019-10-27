@@ -3,6 +3,7 @@
 /results/*
 /node_modules
 /ethereum/datadir/keystore/*
+/ethereum/genesis.json
 *.log
 /ethereum/genesis.json
 /vagrant/.vagrant
