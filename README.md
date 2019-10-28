@@ -37,7 +37,7 @@ First, you need to provide username, password and IP of every node which will be
     ]
 ```
 
-*If you're using vagrant, you can boot your nodes with the Vagrantfile located in the vagrant folder (note that you can choose the number of nodes by changing the NODE_COUNT variable inside the Vagrantfile), and execute the script called generate_ip_list.js (which takes as an argument the number of nodes desired, put the same number of nodes as choosed in the Vagrantfile) to generate the file containing login information of the nodes :*
+*If you're using Vagrant, you can boot your nodes with the Vagrantfile located in the vagrant folder (note that you can choose the number of nodes by changing the NODE_COUNT variable inside the Vagrantfile), and execute the script called generate_ip_list.js (which takes as an argument the number of nodes desired, put the same number of nodes as choosed in the Vagrantfile) to generate the file containing login information of the nodes :*
 
 ```
 cd vagrant
@@ -54,13 +54,21 @@ npm install -g ganache-cli@6.7.0
 ```
 
 In the next step, a Shell Script will be used to run the benchmark and automatically setup the nodes.
-However, if you want to manually setup the servers for some reasons, run the script called prepare_servers.js :
+
+*However, if you want to manually setup the servers for some reasons, run the script called prepare_servers.js:*
 
 ```
 node prepare_servers.js
 ```
 
-This will login on every node described in the file *ip_list.json* and install ethereum packages plus some files generated in your local machine (*genesis.json* and public/private keys), then launch every *Geth node* and connect them together using the bootnode functionnality of *Geth*, and finally unlock all Ethereum accounts to use them in the benchmark later.
+*This will login on every node described in the file ip_list.json and install ethereum packages plus some files generated in your local machine (genesis.json and public/private keys), then launch every Geth node and connect them together using the bootnode functionnality of Geth, and finally unlock all Ethereum accounts to use them in the benchmark later.*
+
+*Finally, run those Truffle commands to compile and send benchmark smart-contracts into the blockchain:*
+
+```
+truffle compile --all
+truffle migrate --network vagrant --reset
+```
 
 ## How to launch the benchmark
 
