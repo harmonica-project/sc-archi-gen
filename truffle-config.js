@@ -45,13 +45,15 @@ module.exports = {
     ganache: {
       host: "127.0.0.1",     // Localhost (default: none)
       port: 7545,            // Standard Ethereum port (default: none)
-      network_id: "5777",       // Any network (default: none)
+      network_id: 5777,       // Any network (default: none)
     },
 
-    vagrant: {
+    infra: {
       host: "10.0.0.11",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
-      network_id: "666",       // Any network (default: none)
+      network_id: 61997,       // Any network (default: none),
+      gasLimit: "0x346DC5D638865",
+      gasPrice: 0
     },
 
     // Another network with more advanced options...

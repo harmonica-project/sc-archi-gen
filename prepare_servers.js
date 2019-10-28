@@ -12,19 +12,29 @@ async function setupMachines() {
     console.log(machines)
 }
 
+function getMachineAddress(i) {
+    var file = fs.readdirSync('./ethereum/datadir/keystore')[i];
+    var keystore = fs.readFileSync('./ethereum/datadir/keystore/' + file, "utf8");
+    return JSON.parse(keystore).address;
+}
+
 function createAccountAndGenesis() {
+    genesis.extraData = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
     for(var i = 0; i < machines.length; i++) {
         console.log("Creating key " + i + " ...")
         execSync('geth account new --datadir ./ethereum/datadir --password ./ethereum/password', { encoding: 'utf-8' });
-        var file = fs.readdirSync('./ethereum/datadir/keystore')[i];
-        var keystore = fs.readFileSync('./ethereum/datadir/keystore/' + file, "utf8");
-        var address = JSON.parse(keystore).address;
+        var address = getMachineAddress(i);
     
         genesis.alloc[address] = {
-            balance: "2000000000000"
+            balance: "0x20000000000000000"
         }
+
+        genesis.extraData += address;
+        machines[i].address = '0x' + address;
     }
-    
+
+    genesis.extraData += "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
     fs.writeFileSync("./ethereum/genesis.json", JSON.stringify(genesis)); 
 }
 
@@ -45,7 +55,6 @@ function setupMachine(machine, i) {
             await genBootnodeEnodeAddr(conn, machine, i);
             await launchBootnodeOnFirstNode(conn, machine, i);
             await launchNode(conn, machine);
-            await unlockAndBindAccount(conn, machine, i);
 
             conn.end();
             resolve(true);
@@ -63,7 +72,7 @@ function setupMachine(machine, i) {
 
 function setupDirectory(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('rm -rf /home/vagrant/datadir /home/vagrant/genesis.json /home/vagrant/boot.key ; mkdir -p /home/vagrant/datadir/keystore ; killall -9 bootnode ; killall -9 geth', function(err, stream) {
+        conn.exec('rm -rf /home/vagrant/datadir /home/vagrant/genesis.json /home/vagrant/boot.key /home/vagrant/password; mkdir -p /home/vagrant/datadir/keystore ; killall -9 bootnode ; killall -9 geth', function(err, stream) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -101,9 +110,8 @@ function initEthDatabase(conn, machine) {
 }
 
 function launchNode(conn, machine) {
-    console.log('Launching node on '  + machine.ip)
     return new Promise(function(resolve, reject) {
-        conn.exec('nohup geth --datadir "/home/vagrant/datadir" --networkid 666 --bootnodes ' + machines[0].bootnode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --mine --miner.threads 10 &>/dev/null &', function(err) {
+        conn.exec('nohup geth --datadir "/home/vagrant/datadir" --networkid 61997 --bootnodes ' + machines[0].bootnode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password password &>/dev/null --gasprice 0 --mine &', function(err) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -222,39 +230,22 @@ function transferEthFiles(conn, i) {
                             reject(false);
                         }
                         else {
-                            sftp.end();
-                            resolve(true);
+                            sftp.fastPut('./ethereum/password', '/home/vagrant/password', function(err) {
+                                if(err) {
+                                    console.error(err);
+                                    reject(false);
+                                }
+                                else {
+                                    sftp.end();
+                                    resolve(true);
+                                }
+                            });
                         }
                     });
                 }
             });
         });
     });
-}
-
-function unlockAndBindAccount(conn, machine, i) {
-    return new Promise(function(resolve, reject) {
-        conn.exec('geth --exec "personal.listAccounts" attach http://' + machine.ip + ':8545', function(err, stream) {
-                if(err) {
-                    console.error(err);
-                    reject(false);
-                }
-                else {
-                    stream.on('data', function(data) {
-                        machines[i]["address"] = JSON.parse(data.toString().replace('\n', ''))[0];
-                        conn.exec('geth --exec "personal.unlockAccount(\'' + machines[i]["address"] + '\', \'password\', 999999)" attach http://' + machine.ip + ':8545', function(err, stream) {
-                            if(err) {
-                                console.error(err);
-                                reject(false);
-                            }
-                            else {
-                                resolve(true); 
-                            }
-                        });
-                    })
-                }
-            });
-    })
 }
 
 ////////////////////////////////////////
