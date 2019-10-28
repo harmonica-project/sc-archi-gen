@@ -1,10 +1,9 @@
-/build
-/benchmarks/*
-/results/*
-/node_modules
-/ethereum/datadir/keystore/*
-/ethereum/genesis.json
+build
+benchmarks/*
+results/*
+node_modules
+ethereum/datadir/keystore/*
 *.log
-/ethereum/genesis.json
-/vagrant/.vagrant
+vagrant/.vagrant
 ip_list.json
+ethereum/genesis.json

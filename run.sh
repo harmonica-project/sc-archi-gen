@@ -11,8 +11,8 @@ if [ $1 = "ganache" ]; then
         ganache-cli -p 7545 -i 5777 -l 0xFFFFFFFFFFFFF -g 0 -q &
 
         echo "Compiling and deploying smart-contracts ..."
-        truffle compile
-        truffle migrate --network ganache
+        truffle compile --all
+        truffle migrate --network ganache --reset
 
         echo "Running benchmark : "
         truffle exec run_benchmarks.js --network ganache
@@ -22,8 +22,8 @@ elif [ $1 = "vagrant" ]; then
         node prepare_servers.js
 
         echo "Compiling and deploying smart-contracts ..."
-        truffle compile
-        truffle migrate -network vagrant
+        truffle compile --all
+        truffle migrate --network vagrant --reset
 
         echo "Running benchmark : "
         truffle exec run_benchmarks.js --network vagrant
