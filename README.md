@@ -73,4 +73,4 @@ Just execute the run.sh script by providing the desired benchmark environment as
 Possible environments:
 
 - ganache (it will launch an Ethereum blockchain on one node using *Ganache*)
-- <s>infra (it will use the *ip_list.json* file to setup the nodes as described before, then execute the benchmark on this set of nodes)<s> WIP
+- <s>infra (it will use the *ip_list.json* file to setup the nodes as described before, then execute the benchmark on this set of nodes)</s> WIP
