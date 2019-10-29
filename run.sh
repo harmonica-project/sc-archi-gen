@@ -17,16 +17,16 @@ if [ $1 = "ganache" ]; then
         echo "Running benchmark : "
         truffle exec run_benchmarks.js --network ganache
 
-elif [ $1 = "vagrant" ]; then
-        echo "Preparing Vagrant servers ..."
+elif [ $1 = "infra" ]; then
+        echo "Preparing specified servers ..."
         node prepare_servers.js
 
         echo "Compiling and deploying smart-contracts ..."
         truffle compile --all
-        truffle migrate --network vagrant --reset
+        truffle migrate --network infra --reset
 
         echo "Running benchmark : "
-        truffle exec run_benchmarks.js --network vagrant
+        truffle exec run_benchmarks.js --network infra
 fi
 
 echo "Done."
