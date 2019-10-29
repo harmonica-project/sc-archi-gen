@@ -61,11 +61,11 @@ function setupMachine(machine, i) {
         })
     
         conn.connect({
-                host: machine.ip,
-                username: machine.user,
-                password: machine.password,
-                port: 22,
-                readyTimeout: 100000
+            host: machine.ip,
+            username: machine.user,
+            password: machine.password,
+            port: 22,
+            readyTimeout: 100000
         });
     });
 }
@@ -255,5 +255,6 @@ execSync('rm -rf ./ethereum/datadir/*');
 createAccountAndGenesis();
 setupMachines()
 .then(function() {
+    fs.writeFileSync("./ip_list.json", JSON.stringify(machines)); 
     console.log("Machines setup done.")
 })

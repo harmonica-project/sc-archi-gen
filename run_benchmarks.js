@@ -1,5 +1,9 @@
-var Deployer = artifacts.require("Deployer");
-var Microservice = artifacts.require("Microservice");
+var deployerABI = require('./build/contracts/Deployer.json');
+var microserviceABI = require('./build/contracts/Microservice.json');
+var machines = require('./ip_list.json');
+
+const Web3 = require('web3')
+
 var fs = require('fs');
 
 const {performance} = require('perf_hooks');
@@ -20,24 +24,19 @@ function getMicroservicesList(bench_file) {
 //- deploy a smart-contract microservice and store its address
 function setMicroservice(name, inst) {
     return new Promise((resolve, reject) => {
-        var p = inst.set_microservice(name);
-        p.then(res => {
-            if(res.tx) {
-                var q = inst.get_microservice_address(name);
-                q.then(addr => {
-                    if(addr) {
-                        resolve([name, addr]);
-                    }
-                    else {
-                        reject(false);
+        inst.methods.set_microservice(name).send({from: machines[0].address},(error, addr) => {
+            if (!error) {
+                inst.methods.get_microservice_address(name).call({from: machines[0].address},(error, addr) => {
+                    if (!error) {
+                        resolve([name, addr])
+                    } else {
+                        reject(error);
                     }
                 })
+            } else {
+                reject(error);
             }
-            else {
-                console.log("Failed to create contract " + name);
-                reject(false);
-            }
-        });
+        })
     })
 }
 
@@ -93,31 +92,79 @@ async function runBenchmarks(microservices, benchInfo) {
     }
 }
 
+function allocateTaskToMachine(difficulty) {
+    var leastUsedMachine = 0;
+
+    for(var i = 0; i < machines.length; i++) {
+        if(machines[i].load == 0) {
+            machines[i].load += difficulty;
+            return i;
+        }
+
+        if(machines[i].load < machines[leastUsedMachine].load) leastUsedMachine = i;
+    }
+
+    machines[leastUsedMachine].load += difficulty;
+    return leastUsedMachine;
+}
+
+function displayLoad() {
+    var str = "";
+
+    machines.forEach(machine => {
+        str += machine.ip + ' => ' + machine.load + '\n';
+    })
+
+    return str;
+}
+
 //runMicroservice
 //- execute dummy tasks inside a microservice and monitor required time to execution
 async function runMicroservice(name, addr, tasks) {
+    //console.log(displayLoad())
+    var difficulty = tasks.instructions + tasks.in_bytes_count + tasks.out_bytes_count;
+    var machineId = allocateTaskToMachine(difficulty);
+    var msInst = new machines[machineId].provider.eth.Contract(microserviceABI.abi, addr);
+
     var tStart = performance.now();
-    let msInst = await Microservice.at(addr);
-    let result = await msInst.runOperations(tasks.instructions, tasks.in_bytes_count, tasks.out_bytes_count);
+    let result = await msInst.methods.runOperations(tasks.instructions, tasks.in_bytes_count, tasks.out_bytes_count).send({from: machines[machineId].address});
     var tEnd = performance.now();
 
-    if(!result.tx) 
+    machines[machineId].load -= difficulty;
+
+    if(!result.transactionHash) 
         console.log('- Microservice ' + name + ' failed to run.')
     else 
         console.log("- Microservice " + name + " call took " + (tEnd - tStart) + " ms.")
 }
 
-//Main 
-module.exports = async function() {
-    let inst = await Deployer.deployed();
-    var files = fs.readdirSync('./benchmarks');
-
-    for(var i = 0; i < files.length; i++) {
-        file = files[i];
-        benchInfo = require('./benchmarks/' + file);
-        const deployedMSList = await generateMicroservices(inst, benchInfo);
-        console.log('Running benchmark ' + file + '...');
-        await runBenchmarks(deployedMSList, benchInfo);
+function createProvidersFromMachines() {
+    for(var i = 0; i < machines.length; i++) {
+        machines[i]["provider"] = new Web3('http://' + machines[i].ip + ':8545');
+        machines[i]["load"] = 0;
+        machines[i].provider.eth.defaultAccount = machines[i].address;
     }
 }
 
+async function run() {
+    createProvidersFromMachines();
+
+    var inst = new machines[0].provider.eth.Contract(deployerABI.abi, deployerABI.networks["61997"].address);
+
+    if(inst) {
+        var files = fs.readdirSync('./benchmarks');
+
+        for(var i = 0; i < files.length; i++) {
+            file = files[i];
+            benchInfo = require('./benchmarks/' + file);
+            const microservicesList = await generateMicroservices(inst, benchInfo);
+            console.log('Running benchmark ' + file + '...');
+            await runBenchmarks(microservicesList, benchInfo);
+        }
+    }
+    else {
+        console.error("Can't deploy microservices: provider not working.")
+    }
+}
+
+run()

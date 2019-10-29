@@ -10,13 +10,13 @@ For now, the benchmark executes every step of the BPMN but the goal is to benchm
 
 ## Requirements
 
-- truffle (currently used here : 5.0.5)
-- node.js (currently used here : 10.16.3)
-- npm (currently used here : 6.9.0)
+- truffle (currently used here: 5.0.5)
+- node.js (currently used here: 10.16.3)
+- npm (currently used here: 6.9.0)
 - solidity (installed version should be 0.5.0 or higher)
-- ganache-cli (currently used here : 6.7.0)
+- web3 (currently used here: 1.2.2)
 
-## How to setup the private Ethereum blockchain for the benchmarks
+## How to setup the project before running the benchmark
 
 First, you need to provide username, password and IP of every node which will be used. To do that, create a file named ip_list.json in the main directory, made of login information :
 
@@ -45,40 +45,18 @@ vagrant up
 node generate_ip_list.js {nbNodes}
 ```
 
-Then, install required packages (*ssh2*, *Ganache CLI* and *Truffle CLI*) by typing :
+Then, install required packages (*ssh2*, *web3* and *Truffle CLI*) by typing :
 
 ```
 npm install
-npm install -g truffle@5.0.5
-npm install -g ganache-cli@6.7.0
-```
-
-In the next step, a Shell Script will be used to run the benchmark and automatically setup the nodes.
-
-*However, if you want to manually setup the servers for some reasons, run the script called prepare_servers.js:*
-
-```
-node prepare_servers.js
-```
-
-*This will login on every node described in the file ip_list.json and install ethereum packages plus some files generated in your local machine (genesis.json and public/private keys), then launch every Geth node and connect them together using the bootnode functionnality of Geth, and finally unlock all Ethereum accounts to use them in the benchmark later.*
-
-*Finally, run those Truffle commands to compile and send benchmark smart-contracts into the blockchain:*
-
-```
-truffle compile --all
-truffle migrate --network vagrant --reset
+npm install truffle
+npm install web3
 ```
 
 ## How to launch the benchmark
 
-Just execute the run.sh script by providing the desired benchmark environment as a string:
+Just execute the run.sh script:
 
 ```
 ./run.sh {environment}
 ```
-
-Possible environments:
-
-- ganache (it will launch an Ethereum blockchain on one node using *Ganache*)
-- infra (it will use the *ip_list.json* file to setup the nodes as described before, then execute the benchmark on this set of nodes) **will only execute on one node for now, WIP**
