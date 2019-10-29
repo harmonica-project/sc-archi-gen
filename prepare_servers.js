@@ -255,5 +255,6 @@ execSync('rm -rf ./ethereum/datadir/*');
 createAccountAndGenesis();
 setupMachines()
 .then(function() {
+    fs.writeFileSync("./ip_list.json", JSON.stringify(machines));
     console.log("Machines setup done.")
 })
