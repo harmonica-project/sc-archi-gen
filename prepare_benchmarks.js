@@ -118,6 +118,11 @@ function getBPMNJson() {
 
 bpmns = getBPMNJson();
 
+let dir="benchmarks";
+if (!fs.existsSync(dir)){
+    fs.mkdirSync(dir);
+}
+
 bpmns.forEach(bpmn => {    
     getBPMNComponents(bpmn[0]);
     getBPMNPaths();
