@@ -63,9 +63,9 @@ function setupMachine(machine, i) {
         conn.connect({
                 host: machine.ip,
                 username: machine.user,
-                password: machine.password,
                 port: 22,
-                readyTimeout: 100000
+                readyTimeout: 100000,
+                privateKey: require('fs').readFileSync('/root/.ssh/id_rsa')
         });
     });
 }
