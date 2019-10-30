@@ -26,7 +26,7 @@ vagrant up
 node generate_config.js {nbNodes}
 ```
 
-*In this case, skip the first two steps below*
+*In this case, skip the first two steps below.*
 
 1. First, you need to provide the username, the password, and the IP of every node which will be used. To do that, create a file named ip_list.json in the main directory, made of login information:
 
