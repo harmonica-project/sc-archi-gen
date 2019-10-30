@@ -16,7 +16,7 @@ fs.writeFileSync("../ip_list.json", JSON.stringify(ipList));
 var truffleConfig = {
     networks: {
         infra: {
-            host: "172.16.72.5",     
+            host: "10.0.0.11",     
             port: 8545,            
             network_id: 61997,       
             gasLimit: "0x346DC5D638865",

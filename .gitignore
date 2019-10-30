@@ -7,3 +7,4 @@ ethereum/datadir/keystore/*
 vagrant/.vagrant
 ip_list.json
 ethereum/genesis.json
+truffle-config.js

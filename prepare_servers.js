@@ -5,6 +5,9 @@ var Client = require('ssh2').Client;
 var genesis = require('./ethereum/template_genesis.json');
 var machines = require('./ip_list.json');
 
+var SSH_KEY = '/root/.ssh/id_rsa';
+var NODE_DIR = '/home/vagrant/';
+
 async function setupMachines() {
     for(var i = 0; i < machines.length; i++) {
         await setupMachine(machines[i], i);
@@ -60,19 +63,30 @@ function setupMachine(machine, i) {
             resolve(true);
         })
     
-        conn.connect({
+        if(machine.password) {
+            conn.connect({
                 host: machine.ip,
                 username: machine.user,
                 port: 22,
                 readyTimeout: 100000,
-                privateKey: require('fs').readFileSync('/root/.ssh/id_rsa')
-        });
+                password: machine.password
+            });
+        }
+        else {
+            conn.connect({
+                host: machine.ip,
+                username: machine.user,
+                port: 22,
+                readyTimeout: 100000,
+                privateKey: require('fs').readFileSync(SSH_KEY)
+            });
+        }
     });
 }
 
 function setupDirectory(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('rm -rf /home/vagrant/datadir /home/vagrant/genesis.json /home/vagrant/boot.key /home/vagrant/password; mkdir -p /home/vagrant/datadir/keystore ; killall -9 bootnode ; killall -9 geth', function(err, stream) {
+        conn.exec('rm -rf ' + NODE_DIR + 'datadir ' + NODE_DIR + 'genesis.json ' + NODE_DIR + 'boot.key ' + NODE_DIR + 'password; mkdir -p ' + NODE_DIR + 'datadir/keystore ; killall -9 bootnode ; killall -9 geth', function(err, stream) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -92,7 +106,7 @@ function setupDirectory(conn, machine) {
 
 function initEthDatabase(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('geth --datadir /home/vagrant/datadir init /home/vagrant/genesis.json', function(err, stream) {
+        conn.exec('geth --datadir ' + NODE_DIR + 'datadir init ' + NODE_DIR + 'genesis.json', function(err, stream) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -111,7 +125,7 @@ function initEthDatabase(conn, machine) {
 
 function launchNode(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('nohup geth --datadir "/home/vagrant/datadir" --networkid 61997 --bootnodes ' + machines[0].bootnode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password /home/vagrant/password &>/dev/null --gasprice 0 --mine &', function(err) {
+        conn.exec('nohup geth --datadir "' + NODE_DIR + 'datadir" --networkid 61997 --bootnodes ' + machines[0].bootnode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password ' + NODE_DIR + 'password &>/dev/null --gasprice 0 --mine &', function(err) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -138,7 +152,7 @@ function launchNode(conn, machine) {
 function initBootnodeOnFirstNode(conn, machine, i) {
     return new Promise(function(resolve, reject) {
         if(i == 0) {
-            conn.exec('bootnode --genkey=/home/vagrant/boot.key', function(err, stream) {
+            conn.exec('bootnode --genkey=' + NODE_DIR + 'boot.key', function(err, stream) {
                 if(err) {
                     console.error(err);
                     reject(false);
@@ -163,7 +177,7 @@ function initBootnodeOnFirstNode(conn, machine, i) {
 function genBootnodeEnodeAddr(conn, machine, i) {
     return new Promise(function(resolve, reject) {
         if(i == 0) {
-            conn.exec('bootnode --nodekey=/home/vagrant/boot.key -writeaddress', function(err, stream) {
+            conn.exec('bootnode --nodekey=' + NODE_DIR + 'boot.key -writeaddress', function(err, stream) {
                 if(err) {
                     console.error(err);
                     reject(false);
@@ -185,7 +199,7 @@ function genBootnodeEnodeAddr(conn, machine, i) {
 function launchBootnodeOnFirstNode(conn, machine, i) {
     return new Promise(function(resolve, reject) {
         if(i == 0) {
-            conn.exec('nohup bootnode --nodekey=/home/vagrant/boot.key -addr ' + machine.ip + ':30300 &>/dev/null &', function(err) {
+            conn.exec('nohup bootnode --nodekey=' + NODE_DIR + 'boot.key -addr ' + machine.ip + ':30300 &>/dev/null &', function(err) {
                 if(err) {
                     console.error(err);
                     reject(false);
@@ -218,19 +232,19 @@ function transferEthFiles(conn, i) {
         conn.sftp(function(err, sftp) {
             var files = fs.readdirSync('./ethereum/datadir/keystore');
             
-            sftp.fastPut('./ethereum/datadir/keystore/' + files[i], '/home/vagrant/datadir/keystore/key.json', function(err) {
+            sftp.fastPut('./ethereum/datadir/keystore/' + files[i], NODE_DIR + 'datadir/keystore/key.json', function(err) {
                 if(err) {
                     console.error(err);
                     reject(false);
                 }
                 else {
-                    sftp.fastPut('./ethereum/genesis.json', '/home/vagrant/genesis.json', function(err) {
+                    sftp.fastPut('./ethereum/genesis.json', NODE_DIR + 'genesis.json', function(err) {
                         if(err) {
                             console.error(err);
                             reject(false);
                         }
                         else {
-                            sftp.fastPut('./ethereum/password', '/home/vagrant/password', function(err) {
+                            sftp.fastPut('./ethereum/password', NODE_DIR + 'password', function(err) {
                                 if(err) {
                                     console.error(err);
                                     reject(false);
