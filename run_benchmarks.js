@@ -3,10 +3,22 @@ var microserviceABI = require('./build/contracts/Microservice.json');
 var machines = require('./ip_list.json');
 
 const Web3 = require('web3')
-
-var fs = require('fs');
-
+const fs = require('fs');
 const {performance} = require('perf_hooks');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+
+const csvWriter = createCsvWriter({
+    path: './results/res_' + Date.now() + '.csv',
+    header: [
+        {id: 'timestamp', title: 'TIMESTAMP'},
+        {id: 'benchmark', title: 'BENCHMARK'},
+        {id: 'path', title: 'PATH'},
+        {id: 'microservice', title: 'MICROSERVICE'},
+        {id: 'time', title: 'TIME'}
+    ]
+});
+
+const results = [];
 
 //getMicroservicesList
 //- returns all choreography tasks from a json-represented BPMN diagram as microservices names
@@ -47,7 +59,7 @@ async function generateMicroservices(inst, bench_file) {
     var microservices = {};
     let names = getMicroservicesList(bench_file);
 
-    console.log("Creating " + names.length + " microservices ...")
+    //console.log("Creating " + names.length + " microservices ...")
     names.forEach(name => {
         promises.push(setMicroservice(name, inst));
     })
@@ -64,13 +76,13 @@ async function generateMicroservices(inst, bench_file) {
 
 //runBPMN
 //- resolve the BPMN by launching every microservices tasks
-async function runBenchmarks(microservices, benchInfo) {
+async function runBenchmarks(microservices, benchInfo, file) {
     var paths = benchInfo.paths;
     var components = benchInfo.components;
 
     for(var i = 0; i < paths.length; i++) {
         var path = paths[i];
-        var tStart = performance.now();
+        //var tStart = performance.now();
         
         for(j = 0; j < path.length; j++) {
             var steps = path[j];
@@ -79,16 +91,16 @@ async function runBenchmarks(microservices, benchInfo) {
             steps.forEach(step => {
                 if(components[step].himself.type === "choreographyTask") {
                     var name = components[step].himself.id;
-                    awaitMs.push(runMicroservice(name, microservices[name], components[step].himself.payload));
+                    awaitMs.push(runMicroservice(name, microservices[name], components[step].himself.payload, file, i));
                 }
             })
             
             await Promise.all(awaitMs);
         }
 
-        var tEnd = performance.now();
+        //var tEnd = performance.now();
 
-        console.log("=> Path resolution took " + (tEnd - tStart) + " ms.\n")
+        //console.log("=> Path resolution took " + (tEnd - tStart) + " ms.\n")
     }
 }
 
@@ -120,7 +132,7 @@ function displayLoad() {
 
 //runMicroservice
 //- execute dummy tasks inside a microservice and monitor required time to execution
-async function runMicroservice(name, addr, tasks) {
+async function runMicroservice(name, addr, tasks, file, pathId) {
     //console.log(displayLoad())
     var difficulty = tasks.instructions + tasks.in_bytes_count + tasks.out_bytes_count;
     var machineId = allocateTaskToMachine(difficulty);
@@ -133,9 +145,16 @@ async function runMicroservice(name, addr, tasks) {
     machines[machineId].load -= difficulty;
 
     if(!result.transactionHash) 
-        console.log('- Microservice ' + name + ' failed to run.')
-    else 
-        console.log("- Microservice " + name + " call took " + (tEnd - tStart) + " ms.")
+        console.error('Error : Microservice ' + name + ' failed to run.')
+    else {
+            results.push({
+                timestamp: Date.now(),
+                benchmark: file,
+                path: pathId,
+                microservice: name,
+                time: (tEnd - tStart)
+            });
+    }
 }
 
 function createProvidersFromMachines() {
@@ -153,14 +172,30 @@ async function run() {
 
     if(inst) {
         var files = fs.readdirSync('./benchmarks');
+        var benchmarks = [];
+        var promises = [];
 
         for(var i = 0; i < files.length; i++) {
             file = files[i];
             benchInfo = require('./benchmarks/' + file);
-            const microservicesList = await generateMicroservices(inst, benchInfo);
-            console.log('Running benchmark ' + file + '...');
-            await runBenchmarks(microservicesList, benchInfo);
+            console.log('Generating microservices for ' + file + '...');
+            benchmarks.push({msList: await generateMicroservices(inst, benchInfo),benchInfo: benchInfo});
         }
+
+        for(var i = 0; i < files.length; i++) {
+            file = files[i];
+            console.log('Running benchmark ' + file + '...');
+            promises.push(runBenchmarks(benchmarks[i].msList, benchmarks[i].benchInfo, file));
+        }
+
+        await Promise.all(promises)
+        .then(() => {
+            csvWriter.writeRecords(results)       // returns a promise
+                .then(() => {
+                    console.log('Benchmark completed and results stored.');
+                });
+ 
+        })
     }
     else {
         console.error("Can't deploy microservices: provider not working.")

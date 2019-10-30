@@ -8,3 +8,4 @@ vagrant/.vagrant
 ip_list.json
 ethereum/genesis.json
 truffle-config.js
+results/*
