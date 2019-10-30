@@ -61,11 +61,11 @@ function setupMachine(machine, i) {
         })
     
         conn.connect({
-            host: machine.ip,
-            username: machine.user,
-            password: machine.password,
-            port: 22,
-            readyTimeout: 100000
+                host: machine.ip,
+                username: machine.user,
+                port: 22,
+                readyTimeout: 100000,
+                privateKey: require('fs').readFileSync('/root/.ssh/id_rsa')
         });
     });
 }
@@ -111,7 +111,7 @@ function initEthDatabase(conn, machine) {
 
 function launchNode(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('nohup geth --datadir "/home/vagrant/datadir" --networkid 61997 --bootnodes ' + machines[0].bootnode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password password &>/dev/null --gasprice 0 --mine &', function(err) {
+        conn.exec('nohup geth --datadir "/home/vagrant/datadir" --networkid 61997 --bootnodes ' + machines[0].bootnode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password /home/vagrant/password &>/dev/null --gasprice 0 --mine &', function(err) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -255,6 +255,6 @@ execSync('rm -rf ./ethereum/datadir/*');
 createAccountAndGenesis();
 setupMachines()
 .then(function() {
-    fs.writeFileSync("./ip_list.json", JSON.stringify(machines)); 
+    fs.writeFileSync("./ip_list.json", JSON.stringify(machines));
     console.log("Machines setup done.")
 })
