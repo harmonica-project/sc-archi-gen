@@ -11,6 +11,5 @@ ethereum/genesis.json
 truffle-config.js
 results/bench/*
 results/load/*
-bpmns/*
 graphs/*
 .DS_Store
