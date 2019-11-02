@@ -100,11 +100,11 @@ function checkParallelGatePrerequisites(c, idPath) {
 //- get all BPMN json representation and stores it into a variable
 function getBPMNJson() {
     var bpmns = [];
-    var files = fs.readdirSync('./samples');
+    var files = fs.readdirSync('./graphs');
 
     try {
         files.forEach(file => {
-            bpmns.push([require('./samples/' + file), file]);
+            bpmns.push([require('./graphs/' + file), file]);
         })    
     }
     catch(e) {

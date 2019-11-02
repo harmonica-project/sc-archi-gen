@@ -21,24 +21,35 @@ function getMachineAddress(i) {
     return JSON.parse(keystore).address;
 }
 
-function createAccountAndGenesis() {
+function getMachineNodekey(i) {
+    return execSync('bootnode -nodekey ./ethereum/datadir/nodekeys/nodekey' + i + ' --writeaddress').toString().replace('\n', '');
+}
+
+function createEthFiles() {
+    var staticNodes = [];
+
     genesis.extraData = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
     for(var i = 0; i < machines.length; i++) {
-        console.log("Creating key " + i + " ...")
+        console.log("Creating key and nodekey " + (i+1) + " ...")
         execSync('geth account new --datadir ./ethereum/datadir --password ./ethereum/password', { encoding: 'utf-8' });
+        execSync('bootnode -genkey ./ethereum/datadir/nodekeys/nodekey' + i, { encoding: 'utf-8' });
         var address = getMachineAddress(i);
-    
+        var nodekey = getMachineNodekey(i);
+
         genesis.alloc[address] = {
             balance: "0x20000000000000000"
         }
 
         genesis.extraData += address;
         machines[i].address = '0x' + address;
+        machines[i].nodekey = nodekey;
+        staticNodes.push('enode://' + nodekey + '@' + machines[i].ip + ':30303');
     }
 
     genesis.extraData += "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
     fs.writeFileSync("./ethereum/genesis.json", JSON.stringify(genesis)); 
+    fs.writeFileSync("./ethereum/static-nodes.json", JSON.stringify(staticNodes)); 
 }
 
 function setupMachine(machine, i) {
@@ -54,9 +65,6 @@ function setupMachine(machine, i) {
             await setupDirectory(conn, machine);
             await transferEthFiles(conn, i);
             await initEthDatabase(conn, machine);
-            await initBootnodeOnFirstNode(conn, machine, i);
-            await genBootnodeEnodeAddr(conn, machine, i);
-            await launchBootnodeOnFirstNode(conn, machine, i);
             await launchNode(conn, machine);
 
             conn.end();
@@ -86,7 +94,7 @@ function setupMachine(machine, i) {
 
 function setupDirectory(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('rm -rf ' + NODE_DIR + 'datadir ' + NODE_DIR + 'genesis.json ' + NODE_DIR + 'boot.key ' + NODE_DIR + 'password; mkdir -p ' + NODE_DIR + 'datadir/keystore ; killall -9 bootnode ; killall -9 geth', function(err, stream) {
+        conn.exec('rm -rf ' + NODE_DIR + 'datadir ' + NODE_DIR + 'genesis.json ' + NODE_DIR + 'boot.key ' + NODE_DIR + 'password; mkdir -p ' + NODE_DIR + 'datadir/keystore ; mkdir -p ' + NODE_DIR + 'datadir/geth ; killall -9 geth', function(err, stream) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -125,7 +133,7 @@ function initEthDatabase(conn, machine) {
 
 function launchNode(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('nohup geth --datadir "' + NODE_DIR + 'datadir" --networkid 61997 --bootnodes ' + machines[0].bootnode + ' --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password ' + NODE_DIR + 'password &>/dev/null --gasprice 0 --mine &', function(err) {
+        conn.exec('nohup geth --datadir "' + NODE_DIR + 'datadir" --networkid 61997 --nodekey ' + NODE_DIR + 'datadir/geth/nodekey --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password ' + NODE_DIR + 'password &>/dev/null --gasprice 0 --mine &', function(err) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -146,84 +154,6 @@ function launchNode(conn, machine) {
                 });
             }
         });
-    })
-}
-
-function initBootnodeOnFirstNode(conn, machine, i) {
-    return new Promise(function(resolve, reject) {
-        if(i == 0) {
-            conn.exec('bootnode --genkey=' + NODE_DIR + 'boot.key', function(err, stream) {
-                if(err) {
-                    console.error(err);
-                    reject(false);
-                }
-                else {
-                    stream.on('close', function() {
-                        resolve(true); 
-                    }).on('data', function(data) {
-                        console.log('Machine ' + machine.ip + ': ' + data);
-                      }).stderr.on('data', function(data) {
-                        console.log('Machine ' + machine.ip + ': ' + data);
-                      });
-                }
-            });
-        }
-        else {
-            resolve(true);
-        }
-    })
-}
-
-function genBootnodeEnodeAddr(conn, machine, i) {
-    return new Promise(function(resolve, reject) {
-        if(i == 0) {
-            conn.exec('bootnode --nodekey=' + NODE_DIR + 'boot.key -writeaddress', function(err, stream) {
-                if(err) {
-                    console.error(err);
-                    reject(false);
-                }
-                else {
-                    stream.on('data', function(data) {
-                        machines[0]["bootnode"] = 'enode://' + data.toString().replace('\n','') + '@' + machine.ip + ':0?discport=30300';
-                        resolve(true); 
-                      })
-                }
-            });
-        }
-        else {
-            resolve(true);
-        }
-    })
-}
-
-function launchBootnodeOnFirstNode(conn, machine, i) {
-    return new Promise(function(resolve, reject) {
-        if(i == 0) {
-            conn.exec('nohup bootnode --nodekey=' + NODE_DIR + 'boot.key -addr ' + machine.ip + ':30300 &>/dev/null &', function(err) {
-                if(err) {
-                    console.error(err);
-                    reject(false);
-                }
-                else {
-                    conn.exec('disown', function(err, stream) {
-                        if(err) {
-                            console.error(err);
-                            reject(false);
-                        }
-                        else {
-                            stream.on('close', function() {
-                                resolve(true); 
-                            }).on('data', function(data) {
-                                resolve(true); 
-                            });
-                        }
-                    });
-                }
-            });
-        }
-        else {
-            resolve(true);
-        }
     })
 }
 
@@ -250,8 +180,24 @@ function transferEthFiles(conn, i) {
                                     reject(false);
                                 }
                                 else {
-                                    sftp.end();
-                                    resolve(true);
+                                    sftp.fastPut('./ethereum/datadir/nodekeys/nodekey' + i, NODE_DIR + 'datadir/geth/nodekey', function(err) {
+                                        if(err) {
+                                            console.error(err);
+                                            reject(false);
+                                        }
+                                        else {
+                                            sftp.fastPut('./ethereum/static-nodes.json', NODE_DIR + 'datadir/geth/static-nodes.json', function(err) {
+                                                if(err) {
+                                                    console.error(err);
+                                                    reject(false);
+                                                }
+                                                else {
+                                                    sftp.end();
+                                                    resolve(true);
+                                                }
+                                            });
+                                        }
+                                    });
                                 }
                             });
                         }
@@ -264,9 +210,9 @@ function transferEthFiles(conn, i) {
 
 ////////////////////////////////////////
 
-execSync('rm -rf ./ethereum/datadir/*');
+execSync('rm -rf ./ethereum/datadir/* ; mkdir ./ethereum/datadir/nodekeys');
 
-createAccountAndGenesis();
+createEthFiles();
 setupMachines()
 .then(function() {
     fs.writeFileSync("./ip_list.json", JSON.stringify(machines));

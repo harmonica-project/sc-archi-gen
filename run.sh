@@ -1,9 +1,14 @@
 #!/bin/bash
 echo "Cleaning old benchmark files ..."
-rm -rf ./benchmarks/*
+#rm -rf ./benchmarks/*
+#rm -rf ./graphs/*
+
+echo "Converting BPMNs to theirs JSON representations: "
+#python workflow-generator.py
+echo "Done."
 
 echo "Generating benchmark files : "
-node prepare_benchmarks.js
+#node prepare_benchmarks.js
 echo "Done."
 
 echo "Preparing specified servers ..."
