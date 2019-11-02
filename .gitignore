@@ -3,6 +3,7 @@ benchmarks/*
 results/*
 node_modules
 ethereum/datadir/keystore/*
+ethereum/datadir/nodekeys/*
 *.log
 vagrant/.vagrant
 ip_list.json
@@ -12,3 +13,4 @@ results/bench/*
 results/load/*
 bpmns/*
 graphs/*
+.DS_Store
