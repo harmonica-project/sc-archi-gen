@@ -1,13 +1,16 @@
 var fs = require('fs');
+var YAML = require('yaml');
+
+const COMPLEXITY = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_TASK_COMPLEXITY;
 
 var components = {}
 var paths = []
+
 
 //getBPMNComponents
 //- get all BPMN components
 function getBPMNComponents(bpmn) {
     components = {};
-    let complexity = 500;
 
     bpmn.nodes.forEach(node => {
         components[node.id] = {
@@ -16,10 +19,10 @@ function getBPMNComponents(bpmn) {
             himself: node
         }
 
-        components[node.id].himself.payload.instructions = Math.round(Math.random() * complexity);
-        components[node.id].himself.payload.in_bytes_count = Math.round(Math.random() * complexity);
-        components[node.id].himself.payload.out_bytes_count = Math.round(Math.random() * complexity);
-        components[node.id].himself.payload.dummy_padding = Math.round(Math.random() * complexity);
+        components[node.id].himself.payload.instructions = Math.round(Math.random() * COMPLEXITY);
+        components[node.id].himself.payload.in_bytes_count = Math.round(Math.random() * COMPLEXITY);
+        components[node.id].himself.payload.out_bytes_count = Math.round(Math.random() * COMPLEXITY);
+        components[node.id].himself.payload.dummy_padding = Math.round(Math.random() * COMPLEXITY);
     })
 
     bpmn.links.forEach(link => {

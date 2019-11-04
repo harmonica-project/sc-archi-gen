@@ -1,0 +1,5 @@
+BENCH_FILE_LIMIT: 150
+BENCH_TASK_COMPLEXITY: 500
+BLOCK_PERIOD: 1
+SSH_KEY: '/root/.ssh/id_rsa'
+NODE_WORKING_DIR: '/home/vagrant/'

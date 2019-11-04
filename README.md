@@ -70,12 +70,10 @@ module.exports = {
 }
 ```
 
-3. Finally, install required packages (*ssh2*, *web3* and *Truffle CLI*) by typing:
+3. Finally, install required packages by typing:
 
 ```
 npm install
-npm install truffle
-npm install web3
 ```
 
 ## How to launch the benchmark

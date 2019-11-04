@@ -2,12 +2,13 @@ var deployerABI = require('./build/contracts/Deployer.json');
 var microserviceABI = require('./build/contracts/Microservice.json');
 var machines = require('./ip_list.json');
 
-const Web3 = require('web3')
+const Web3 = require('web3');
+const YAML = require('yaml');
 const fs = require('fs');
 const {performance} = require('perf_hooks');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
-const BENCH_LIMIT = 100
+const BENCH_LIMIT = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_FILE_LIMIT;
 
 const csvWriterBench = createCsvWriter({
     path: './results/bench/res_' + Date.now() + '.csv',
@@ -29,8 +30,8 @@ var benchResults = [];
 var loadResults = [];
 var deploymentErrCount = 0;
 var execErrCount = 0;
-var msCount = 0;
-var opCount = 0;
+var opToDoCount = 0;
+var opDoneCount = 0;
 
 function generateLoadHeader() {
     var header = [{id: 'timestamp', title: 'TIMESTAMP'}];
@@ -65,8 +66,7 @@ function setMicroservice(name, inst) {
                 if (!error) {
                     inst.methods.get_microservice_address(name).call({from: machines[0].address},(error, addr) => {
                         if (!error) {
-                            resolve([name, addr])
-                            msCount++;
+                            resolve([name, addr]);
                         } else {
                             console.error(error);
                             resolve(false);
@@ -127,6 +127,8 @@ async function runBenchmarks(microservices, benchInfo, file) {
                     var name = components[step].himself.id;
                     awaitMs.push(runMicroservice(name, microservices[name], components[step].himself.payload, file, i));
                 }
+
+                opDoneCount++;
             })
             
             await Promise.all(awaitMs);
@@ -166,7 +168,7 @@ function monitorLoad(displayInConsole) {
 }
 
 function displayProgress() {
-    console.log("Microservices executed: " + opCount + "/" + msCount + "\n");
+    console.log("Microservices executed: " + opDoneCount + "/" + opToDoCount + "\n");
     setTimeout(displayProgress, 1000);
 }
 
@@ -204,7 +206,6 @@ async function runMicroservice(name, addr, tasks, file, pathId) {
     }
     finally {
         machines[machineId].load -= difficulty;
-        opCount++;
     }
 }
 
@@ -233,6 +234,12 @@ function createResultRepIfNotDefined() {
     }
 }
 
+function incrementOpTodoCount(paths) {
+    paths.forEach(path => {
+        path.forEach(()=> {opToDoCount++})
+    })
+}
+
 async function run() {
     createProvidersFromMachines();
     createResultRepIfNotDefined();
@@ -251,6 +258,7 @@ async function run() {
             benchInfo = require('./benchmarks/' + file);
             console.log('Generating microservices for ' + file + '...');
             benchmarks.push({msList: await generateMicroservices(inst, benchInfo),benchInfo: benchInfo});
+            incrementOpTodoCount(benchInfo.paths);
         }
 
         displayProgress();

@@ -1,12 +1,15 @@
 const execSync = require('child_process').execSync;
 const fs = require('fs');
+const YAML = require('yaml');
+
 var Client = require('ssh2').Client;
 
 var genesis = require('./ethereum/template_genesis.json');
 var machines = require('./ip_list.json');
 
-var SSH_KEY = '/root/.ssh/id_rsa';
-var NODE_DIR = '/home/vagrant/';
+const BLOCK_PERIOD = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BLOCK_PERIOD;
+const SSH_KEY = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).SSH_KEY;
+const NODE_DIR = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).NODE_WORKING_DIR;
 
 async function setupMachines() {
     for(var i = 0; i < machines.length; i++) {
@@ -29,7 +32,8 @@ function createEthFiles() {
     var staticNodes = [];
 
     genesis.extraData = "0x0000000000000000000000000000000000000000000000000000000000000000";
-
+    genesis.config.clique.period = BLOCK_PERIOD;
+    
     for(var i = 0; i < machines.length; i++) {
         console.log("Creating key and nodekey " + (i+1) + " ...")
         execSync('geth account new --datadir ./ethereum/datadir --password ./ethereum/password', { encoding: 'utf-8' });
