@@ -1,6 +1,7 @@
 var deployerABI = require('./build/contracts/Deployer.json');
 var microserviceABI = require('./build/contracts/Microservice.json');
 var machines = require('./ip_list.json');
+var PromisePool = require('es6-promise-pool')
 
 const Web3 = require('web3');
 const YAML = require('yaml');
@@ -9,6 +10,8 @@ const {performance} = require('perf_hooks');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 const BENCH_LIMIT = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_FILE_LIMIT;
+const BENCH_POOL_SPEED = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_POOL_SPEED;
+const DEPLOYMENT_POOL_SPEED = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).DEPLOYMENT_POOL_SPEED;
 
 const csvWriterBench = createCsvWriter({
     path: './results/bench/res_' + Date.now() + '.csv',
@@ -30,9 +33,10 @@ var benchResults = [];
 var loadResults = [];
 var deploymentErrCount = 0;
 var execErrCount = 0;
-var opToDoCount = 0;
 var opDoneCount = 0;
 
+//generateLoadHeader
+//- generate a header for saved CSV load files
 function generateLoadHeader() {
     var header = [{id: 'timestamp', title: 'TIMESTAMP'}];
 
@@ -57,7 +61,7 @@ function getMicroservicesList(bench_file) {
     return msList;
 }
 
-//generateMicroservices
+//setMicroservice
 //- deploy a smart-contract microservice and store its address
 function setMicroservice(name, inst) {
     return new Promise((resolve) => {
@@ -89,7 +93,7 @@ function setMicroservice(name, inst) {
 
 //generateMicroservices
 //- deploy smart-contracts microservices from microservice name list
-async function generateMicroservices(inst, bench_file) {
+async function generateMicroservices(inst, bench_file, count) {
     var promises = [];
     var microservices = {};
     let names = getMicroservicesList(bench_file);
@@ -105,11 +109,11 @@ async function generateMicroservices(inst, bench_file) {
                 if(p)
                     microservices[p[0]] = p[1];
             });
-            return microservices;
+            return [microservices, count];
         })
 }
 
-//runBPMN
+//runBenchmarks
 //- resolve the BPMN by launching every microservices tasks
 async function runBenchmarks(microservices, benchInfo, file) {
     var paths = benchInfo.paths;
@@ -127,8 +131,6 @@ async function runBenchmarks(microservices, benchInfo, file) {
                     var name = components[step].himself.id;
                     awaitMs.push(runMicroservice(name, microservices[name], components[step].himself.payload, file, i));
                 }
-
-                opDoneCount++;
             })
             
             await Promise.all(awaitMs);
@@ -136,6 +138,8 @@ async function runBenchmarks(microservices, benchInfo, file) {
     }
 }
 
+//allocateTaskToMachine
+//- get the least used machine, then allocates it a task
 function allocateTaskToMachine(difficulty) {
     var leastUsedMachine = 0;
 
@@ -152,6 +156,8 @@ function allocateTaskToMachine(difficulty) {
     return leastUsedMachine;
 }
 
+//monitorLoad
+//- keep track of machines load, if displayInConsole = true display it inside the console too
 function monitorLoad(displayInConsole) {
     var str = "Operation load by node:\n";
     var load = {timestamp: Date.now()};
@@ -168,7 +174,7 @@ function monitorLoad(displayInConsole) {
 }
 
 function displayProgress() {
-    console.log("Microservices executed: " + opDoneCount + "/" + opToDoCount + "\n");
+    console.log("Microservices executed: " + opDoneCount + "\n");
     setTimeout(displayProgress, 1000);
 }
 
@@ -206,9 +212,12 @@ async function runMicroservice(name, addr, tasks, file, pathId) {
     }
     finally {
         machines[machineId].load -= difficulty;
+        opDoneCount++;
     }
 }
 
+//createProvidersFromMachines
+//- creates a web3 provider for every node, in order to send it transactions
 function createProvidersFromMachines() {
     for(var i = 0; i < machines.length; i++) {
         machines[i]["provider"] = new Web3('http://' + machines[i].ip + ':8545');
@@ -217,6 +226,7 @@ function createProvidersFromMachines() {
     }
 }
 
+//createResultRepIfNotDefined
 function createResultRepIfNotDefined() {
     var dir="results";
     if (!fs.existsSync(dir)){
@@ -234,12 +244,7 @@ function createResultRepIfNotDefined() {
     }
 }
 
-function incrementOpTodoCount(paths) {
-    paths.forEach(path => {
-        path.forEach(()=> {opToDoCount++})
-    })
-}
-
+//Main function
 async function run() {
     createProvidersFromMachines();
     createResultRepIfNotDefined();
@@ -249,38 +254,67 @@ async function run() {
     if(inst) {
         var files = fs.readdirSync('./benchmarks');
         var benchmarks = [];
-        var promises = [];
 
         var limit = Math.min(BENCH_LIMIT, files.length)
 
-        for(var i = 0; i < limit; i++) {
-            file = files[i];
+        var count = -1;
+    
+        //microservices deployer promise generator
+        var promiseProducer = function () {
+            count++;
+            if(count < limit) {
+                file = files[count];
+                benchInfo = require('./benchmarks/' + file);
+                console.log('Generating microservices for ' + file + '...');
+                return generateMicroservices(inst, benchInfo, count);
+            }
+            else return null;
+        }
+
+        var pool = new PromisePool(promiseProducer, limit/DEPLOYMENT_POOL_SPEED)
+
+        var poolPromise = pool.start()
+
+        pool.addEventListener('fulfilled', function (event) {
+            file = files[event.data.result[1]];
             benchInfo = require('./benchmarks/' + file);
-            console.log('Generating microservices for ' + file + '...');
-            benchmarks.push({msList: await generateMicroservices(inst, benchInfo),benchInfo: benchInfo});
-            incrementOpTodoCount(benchInfo.paths);
-        }
-
-        displayProgress();
-        monitorLoad(true);
-
-        for(var i = 0; i < limit; i++) {
-            file = files[i];
-            console.log('Running benchmark ' + file + '...');
-            promises.push(runBenchmarks(benchmarks[i].msList, benchmarks[i].benchInfo, file));
-        }
-
-        await Promise.all(promises)
-            .then(() => {
+            benchmarks[event.data.result[1]] = {msList: event.data.result[0], benchInfo: benchInfo}
+          })
+          
+        await poolPromise.then(async () => {
+            displayProgress();
+            monitorLoad(true);
+    
+            var count = 0;
+    
+            //benchmark promise generator
+            var promiseProducer = function () {
+                if(count < limit - 1) {
+                    file = files[count];
+                    count++;
+                    console.log('Running benchmark ' + file + '...');
+                    return runBenchmarks(benchmarks[count].msList, benchmarks[count].benchInfo, file);
+                }
+                else return null;
+            }
+    
+            var pool = new PromisePool(promiseProducer, limit/BENCH_POOL_SPEED);
+     
+            // Start the pool.
+            var poolPromise = pool.start();
+            
+            // Wait for the pool to settle.
+            await poolPromise.then(() => {
                 csvWriterBench.writeRecords(benchResults)       // returns a promise
-                    .then(() => {
-                        csvWriterLoad.writeRecords(loadResults)       // returns a promise
-                            .then(() => {
-                                console.log('Benchmark completed and results stored. Deployment errors: ' + deploymentErrCount + ', execution errors: ' + execErrCount + '.');
-                                process.exit(0);
-                            });
-                    });
+                .then(() => {
+                    csvWriterLoad.writeRecords(loadResults)       // returns a promise
+                        .then(() => {
+                            console.log('Benchmark completed and results stored. Deployment errors: ' + deploymentErrCount + ', execution errors: ' + execErrCount + '.');
+                            process.exit(0);
+                        });
+                });
             })
+        })
     }
     else {
         console.error("Can't deploy microservices: provider not working.")
