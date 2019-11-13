@@ -2,10 +2,19 @@ var fs = require('fs');
 var YAML = require('yaml');
 
 const COMPLEXITY = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_TASK_COMPLEXITY;
+const SEED = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).SEED;
+var seed = SEED;
 
 var components = {}
 var paths = []
 
+//randomWithSeed
+//- generates pseudo random numbers from an initial seed
+function randomWithSeed() {
+    seed++;
+    var x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+}
 
 //getBPMNComponents
 //- get all BPMN components
@@ -19,10 +28,10 @@ function getBPMNComponents(bpmn) {
             himself: node
         }
 
-        components[node.id].himself.payload.instructions = Math.round(Math.random() * COMPLEXITY);
-        components[node.id].himself.payload.in_bytes_count = Math.round(Math.random() * COMPLEXITY);
-        components[node.id].himself.payload.out_bytes_count = Math.round(Math.random() * COMPLEXITY);
-        components[node.id].himself.payload.dummy_padding = Math.round(Math.random() * COMPLEXITY);
+        components[node.id].himself.payload.instructions = Math.round(randomWithSeed() * COMPLEXITY);
+        components[node.id].himself.payload.in_bytes_count = Math.round(randomWithSeed() * COMPLEXITY);
+        components[node.id].himself.payload.out_bytes_count = Math.round(randomWithSeed() * COMPLEXITY);
+        components[node.id].himself.payload.dummy_padding = Math.round(randomWithSeed() * COMPLEXITY);
     })
 
     bpmn.links.forEach(link => {

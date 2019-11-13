@@ -19,3 +19,6 @@ SSH_KEY: '/root/.ssh/id_rsa'
 #Working dir used in each node to install Ethereum
 NODE_WORKING_DIR: '/home/vagrant/'
 
+#Seed for random task generator
+SEED: 666
+
