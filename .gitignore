@@ -4,6 +4,7 @@ results/*
 node_modules
 ethereum/datadir/keystore/*
 ethereum/datadir/nodekeys/*
+ethereum/static-nodes.json
 *.log
 vagrant/.vagrant
 ip_list.json
