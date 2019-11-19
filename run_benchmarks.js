@@ -140,19 +140,19 @@ async function runBenchmarks(microservices, benchInfo, file) {
 
 //allocateTaskToMachine
 //- get the least used machine, then allocates it a task
-function allocateTaskToMachine(difficulty) {
+function allocateTaskToMachine() {
     var leastUsedMachine = 0;
 
     for(var i = 0; i < machines.length; i++) {
         if(machines[i].load == 0) {
-            machines[i].load += difficulty;
+            machines[i].load += 1;
             return i;
         }
 
         if(machines[i].load < machines[leastUsedMachine].load) leastUsedMachine = i;
     }
 
-    machines[leastUsedMachine].load += difficulty;
+    machines[leastUsedMachine].load += 1;
     return leastUsedMachine;
 }
 
@@ -182,8 +182,7 @@ function displayProgress() {
 //- execute dummy tasks inside a microservice and monitor required time to execution
 async function runMicroservice(name, addr, tasks, file, pathId) {
     //Coefficients of ponderation came from Ethereum OPCODE gas cost sheet
-    var difficulty = tasks.instructions*6 + tasks.in_bytes_count*203 + tasks.out_bytes_count*5003;
-    var machineId = allocateTaskToMachine(difficulty);
+    var machineId = allocateTaskToMachine();
 
     try {
         var msInst = new machines[machineId].provider.eth.Contract(microserviceABI.abi, addr);
@@ -211,7 +210,7 @@ async function runMicroservice(name, addr, tasks, file, pathId) {
         execErrCount++;
     }
     finally {
-        machines[machineId].load -= difficulty;
+        machines[machineId].load -= 1;
         opDoneCount++;
     }
 }
