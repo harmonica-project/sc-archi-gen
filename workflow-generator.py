@@ -2,6 +2,8 @@
 
 import json
 import os
+import random
+import yaml
 import matplotlib.pyplot as plt
 from lxml import etree
 import copy
@@ -12,11 +14,25 @@ import re
 IP="localhost"
 
 class Payload:
-    def __init__(self, instructions=0, in_bytes_count=0, out_bytes_count=0, dummy_padding=0):
+    def __init__(self, instructions, in_bytes_count, out_bytes_count, dummy_padding):
         self.instructions = instructions
         self.in_bytes_count = in_bytes_count
         self.out_bytes_count = out_bytes_count
         self.dummy_padding = dummy_padding
+
+def get_seed():
+    with open(r'./hyperparams.yml') as file:
+    # The FullLoader parameter handles the conversion from YAML
+    # scalar values to Python the dictionary format
+        hyperparams = yaml.load(file, Loader=yaml.FullLoader)
+        return hyperparams['SEED']
+
+def get_bench_task_complexity():
+    with open(r'./hyperparams.yml') as file:
+    # The FullLoader parameter handles the conversion from YAML
+    # scalar values to Python the dictionary format
+        hyperparams = yaml.load(file, Loader=yaml.FullLoader)
+        return hyperparams['BENCH_TASK_COMPLEXITY']
 
 
 def get_tag_type(element):
@@ -24,7 +40,14 @@ def get_tag_type(element):
 
 
 def get_random_payload(tag_type):
-    return vars(Payload())
+    complexity = get_bench_task_complexity()
+
+    instructions = random.randint(complexity*0.7,complexity*1.3)
+    in_bytes_count = random.randint(complexity*0.7,complexity*1.3)
+    out_bytes_count = random.randint(complexity*0.7,complexity*1.3)
+    dummy_padding = random.randint(complexity*0.7,complexity*1.3)
+
+    return vars(Payload(instructions, in_bytes_count, out_bytes_count, dummy_padding))
 
 
 def visit_bpmn(father, nodes, g):
@@ -51,6 +74,8 @@ def visit_bpmn(father, nodes, g):
 if __name__=='__main__':
     errors = 0
     nb_files = 0
+
+    random.seed(get_seed())
 
     for file in os.listdir('./bpmns'):
         nb_files = nb_files + 1 
@@ -83,4 +108,4 @@ if __name__=='__main__':
         except:
             errors = errors + 1 
 
-    print("Amount of converted files from BPMN directory : " + str(nb_files - errors) + "/" + str(nb_files))
+    print("Amount of converted files from BPMN directory : " + str(nb_files - errors) + "/" + str(nb_files - 1))
