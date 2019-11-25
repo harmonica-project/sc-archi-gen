@@ -1,11 +1,11 @@
 #Maximum number of files used in the benchmark
 BENCH_FILE_LIMIT: 20
 
-#Speed of BPMN resolution coefficient (lower = faster : 1 means all the BPMN are launch at the same time; 2 means half the BPMN are launch at the same time ...)
-BENCH_POOL_SPEED: 1
+#Speed of BPMN resolution coefficient time (n : number of bpmn benchmarked at the same moment)
+BENCH_POOL_SPEED: 4
 
-#Speed of BPMN microservices deployment coefficient (lower = faster : 1 means all the BPMN are launch at the same time; 2 means half the BPMN are launch at the same time ...)
-DEPLOYMENT_POOL_SPEED: 1
+#Speed of BPMN microservices deployment (n : number of bpmn deployed at the same moment)
+DEPLOYMENT_POOL_SPEED: 10
 
 #Complexity of operations executed inside a microservice (dummy scale)
 BENCH_TASK_COMPLEXITY: 100

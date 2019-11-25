@@ -7,10 +7,6 @@ echo "Converting BPMNs to theirs JSON representations: "
 python workflow-generator.py
 echo "Done."
 
-echo "Generating benchmark files : "
-node prepare_benchmarks.js
-echo "Done."
-
 echo "Preparing specified servers ..."
 node prepare_servers.js
 
@@ -19,7 +15,7 @@ truffle compile --all
 truffle migrate --network infra --reset
 
 echo "Running benchmark : "
-node run_benchmarks.js
+node makepccry.js
 
 echo "Done."
 pkill node
