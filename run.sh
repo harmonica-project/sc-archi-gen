@@ -7,10 +7,6 @@ echo "Converting BPMNs to theirs JSON representations: "
 python workflow-generator.py
 echo "Done."
 
-echo "Generating benchmark files : "
-node prepare_benchmarks.js
-echo "Done."
-
 echo "Preparing specified servers ..."
 node prepare_servers.js
 
