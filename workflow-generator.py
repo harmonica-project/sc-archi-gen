@@ -100,6 +100,9 @@ if __name__=='__main__':
 
             filename = ('.').join(file.split('.')[:-1])
             
+            if not os.path.exists('./graphs/'):
+                os.makedirs('./graphs/')
+    
             with open('./graphs/' + filename + '.json', 'w+') as graph:
                 json.dump(nx.node_link_data(g), graph)
 

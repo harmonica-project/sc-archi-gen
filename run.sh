@@ -15,7 +15,7 @@ truffle compile --all
 truffle migrate --network infra --reset
 
 echo "Running benchmark : "
-node makepccry.js
+node run_benchmarks.js
 
 echo "Done."
 pkill node

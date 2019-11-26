@@ -19,8 +19,8 @@ const csvWriterBench = createCsvWriter({
     header: [
         {id: 'timestamp', title: 'TIMESTAMP'},
         {id: 'benchmark', title: 'BENCHMARK'},
-        {id: 'microservice', title: 'MICROSERVICE'},
-        {id: 'time', title: 'TIME'}
+        {id: 'time', title: 'TIME'},
+        {id: 'benchmarkDoneCount', title: 'BENCHMARK_DONE_COUNT'},
     ]
 });
 
@@ -35,6 +35,7 @@ var pgBenchTampon = {};
 var deploymentErrCount = 0;
 var execErrCount = 0;
 var opDoneCount = 0;
+var benchmarkDoneCount = 0;
 
 //randomWithSeed
 //- generates pseudo random numbers from an initial seed
@@ -102,7 +103,7 @@ function setMicroservice(name, inst) {
 
 //generateMicroservices
 //- deploy smart-contracts microservices from microservice name list
-async function generateMicroservices(inst, bench_file, count) {
+async function generateMicroservices(inst, bench_file, idBench) {
     var promises = [];
     var microservices = {};
     let names = getMicroservicesList(bench_file);
@@ -118,19 +119,31 @@ async function generateMicroservices(inst, bench_file, count) {
                 if(p)
                     microservices[p[0]] = p[1];
             });
-            return [microservices, count];
+            return [microservices, idBench];
         })
 }
 
 //runBenchmark
 //- resolve the BPMN by launching every microservices tasks
-async function runBenchmark(microservices, benchInfo, file, count) {
-    console.log("New benchmark (" + count + ") : " + file)
+async function runBenchmark(microservices, benchInfo, file, idBench) {
+    console.log("New benchmark (" + idBench + ") : " + file)
     var currentElt = benchInfo.nodes[0];
-    await runStep(currentElt, microservices, benchInfo, file, count);
+
+    tStart = performance.now();
+    await runStep(currentElt, microservices, benchInfo, file, idBench);
+    tEnd = performance.now();
+
+    benchmarkDoneCount++;
+
+    benchResults.push({
+        timestamp: Date.now(),
+        benchmark: file,
+        time: (tEnd - tStart),
+        benchmarkDoneCount: benchmarkDoneCount
+    });
 }
 
-async function runStep(elt, microservices, benchInfo, file, count) {
+async function runStep(elt, microservices, benchInfo, file, idBench) {
     var pArr = [];
 
     switch(elt.type) {
@@ -140,16 +153,16 @@ async function runStep(elt, microservices, benchInfo, file, count) {
 
             getTargets(benchInfo, elt.id).forEach(target => {
                 if(getBPMNElt(benchInfo, target).type == "parallelGateway") {
-                    if(!pgBenchTampon[count + target]) pgBenchTampon[count + target] = [];
-                    pgBenchTampon[count + target].push(elt.id);
+                    if(!pgBenchTampon[idBench + target]) pgBenchTampon[idBench + target] = [];
+                    pgBenchTampon[idBench + target].push(elt.id);
 
-                    var pgTampon = pgBenchTampon[count + target];
+                    var pgTampon = pgBenchTampon[idBench + target];
                     var sources = getSources(benchInfo, target);
                     pgTampon.sort()
                     sources.sort()
 
                     if(JSON.stringify(pgTampon) == JSON.stringify(sources)) {
-                        delete pgBenchTampon[count + target];
+                        delete pgBenchTampon[idBench + target];
                         pArr.push(runStep(getBPMNElt(benchInfo, target), microservices, benchInfo, file));
                     }
                 }
@@ -223,9 +236,11 @@ function monitorLoad(displayInConsole) {
     setTimeout(monitorLoad, 1000, displayInConsole);
 }
 
-function displayProgress() {
-    console.log("Microservices executed: " + opDoneCount + "\n");
-    setTimeout(displayProgress, 1000);
+function displayProgress(displayInConsole) {
+    if(displayInConsole) {
+        console.log("Microservices executed: " + opDoneCount + "\n");
+        setTimeout(displayProgress, 1000);
+    }
 }
 
 function getSources(bench, eltId) {
@@ -267,23 +282,11 @@ async function runMicroservice(name, addr, tasks, file) {
 
     try {
         var msInst = new machines[machineId].provider.eth.Contract(microserviceABI.abi, addr);
-
-        var tStart = performance.now();
         let result = await msInst.methods.runOperations(tasks.instructions, tasks.in_bytes_count, tasks.out_bytes_count).send({from: machines[machineId].address});
-        var tEnd = performance.now();
 
         if(!result.transactionHash) {
             console.error('Error : Microservice ' + name + ' transaction failed.');
             execErrCount++;
-        }
-        else {
-                console.log('Microservice ' + name + ' took ' + (tEnd - tStart) + 'ms.')
-                benchResults.push({
-                    timestamp: Date.now(),
-                    benchmark: file,
-                    microservice: name,
-                    time: (tEnd - tStart)
-                });
         }
     }
     catch(e) {
@@ -335,16 +338,16 @@ async function run() {
         var files = fs.readdirSync('./graphs');
         var graphs = [];
     
-        var count = -1;
+        var idDeployedMS = -1;
     
         //microservices deployer promise generator
         var promiseProducer = function () {
-            count++;
-            if(count < files.length) {
-                file = files[count];
+            idDeployedMS++;
+            if(idDeployedMS < files.length) {
+                file = files[idDeployedMS];
                 benchInfo = require('./graphs/' + file);
                 console.log('Generating microservices for ' + file + '...');
-                return generateMicroservices(inst, benchInfo, count);
+                return generateMicroservices(inst, benchInfo, idDeployedMS);
             }
             else return null;
         }
@@ -359,18 +362,18 @@ async function run() {
           })
           
         await poolPromise.then(async () => {
-            //displayProgress();
+            displayProgress(false);
             monitorLoad(false);
     
-            var count = 0;
+            var idBench = 0;
 
             //benchmark promise generator
             var promiseProducer = function () {
-                count++;
+                idBench++;
                 bpmnId = Math.floor(randomWithSeed()*files.length);
                 file = files[bpmnId];
                 console.log('Running benchmark ' + file + '...');
-                return runBenchmark(graphs[bpmnId].msList, graphs[bpmnId].benchInfo, file, count);
+                return runBenchmark(graphs[bpmnId].msList, graphs[bpmnId].benchInfo, file, idBench);
             }
     
             var pool = new PromisePool(promiseProducer, BENCH_POOL_SPEED);
