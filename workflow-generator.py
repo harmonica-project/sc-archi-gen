@@ -114,8 +114,8 @@ def process_bpmn(params):
         for n in g.nodes:
 
             host_config=random.choice(cluster_config)
-            g.nodes[n]["url"] = "http://%s:8080"%host_config["ip"]
-            g.nodes[n]["host"] = host_config["host"]
+            g.nodes[n]["url"] = "http://%s:8080"%host_config.get("ip","unknown")
+            g.nodes[n]["host"] = host_config.get("host",None)
 
         filename = ('.').join(file.split('.')[:-1])
 
