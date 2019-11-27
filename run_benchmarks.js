@@ -29,8 +29,6 @@ const csvWriterLoad = createCsvWriter({
     header: generateLoadHeader()
 });
 
-var benchResults = [];
-var loadResults = [];
 var pgBenchTampon = {};
 var deploymentErrCount = 0;
 var execErrCount = 0;
@@ -135,7 +133,7 @@ async function runBenchmark(microservices, benchInfo, file, idBench) {
 
     benchmarkDoneCount++;
 
-    benchResults.push({
+    csvWriterBench.writeRecords({
         timestamp: Date.now(),
         benchmark: file,
         time: (tEnd - tStart),
@@ -230,9 +228,12 @@ function monitorLoad(displayInConsole) {
         load["load_" + machine.ip] = machine.load;
     })
 
-    loadResults.push(load);
+    csvWriterLoad.writeRecords(load);
 
-    if(displayInConsole) console.log(str);
+    if(displayInConsole) {
+        console.log(str);
+        console.log('Deployment errors : ' + deploymentErrCount + ', execution errors : ' + execErrCount);
+    }
     setTimeout(monitorLoad, 1000, displayInConsole);
 }
 
@@ -382,16 +383,7 @@ async function run() {
             var poolPromise = pool.start();
             
             // Wait for the pool to settle.
-            await poolPromise.then(() => {
-                csvWriterBench.writeRecords(benchResults)       // returns a promise
-                .then(() => {
-                    csvWriterLoad.writeRecords(loadResults)       // returns a promise
-                        .then(() => {
-                            console.log('Benchmark completed and results stored. Deployment errors: ' + deploymentErrCount + ', execution errors: ' + execErrCount + '.');
-                            process.exit(0);
-                        });
-                });
-            })
+            await poolPromise;
         })
     }
     else {
