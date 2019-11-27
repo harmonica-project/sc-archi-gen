@@ -4,3 +4,4 @@ file_roots:
   base:
     - /srv/salt
     - /srv/formulas/node-formula
+    - /srv/formulas/docker-formula
