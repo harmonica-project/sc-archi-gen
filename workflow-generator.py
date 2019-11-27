@@ -87,11 +87,14 @@ def visit_bpmn(doc, father, nodes, g):
                            payload=get_random_payload(tag_type))
             else:
                 g.add_node(node_id, type=get_tag_type(node), payload=get_random_payload(tag_type), name=node_name)
-            g.add_edge(father, node_id)
-            edge_names = node.xpath("bpmn2:outgoing/text()", namespaces=ns)
-            for edge_name in edge_names:
-                next_tasks = doc.xpath("//bpmn2:incoming[. = '" + edge_name + "']/..", namespaces=ns)
-                visit_bpmn(doc, node_id, next_tasks, g)
+
+            if (father, node_id) not in g.edges:
+                g.add_edge(father, node_id)
+
+                edge_names = node.xpath("bpmn2:outgoing/text()", namespaces=ns)
+                for edge_name in edge_names:
+                    next_tasks = doc.xpath("//bpmn2:incoming[. = '" + edge_name + "']/..", namespaces=ns)
+                    visit_bpmn(doc, node_id, next_tasks, g)
 
 
 def process_bpmn(params):
@@ -99,7 +102,8 @@ def process_bpmn(params):
 
     file=params[0]
     cluster_config=params[1]
-
+    if(file=="Selbstbedienungrestaurant_7c7e418db39b48f082e9eb21d5524b10.bpmn"):
+        print("top")
     print("processing %s" % file)
 
     try:
@@ -142,7 +146,6 @@ if __name__ == '__main__':
     pool = Pool(processes=cpu_count() - 1)
     cluster_config=get_cluster_config()
     params=[(f,cluster_config) for f in os.listdir('./bpmns')]
-    print(params)
     success = sum(pool.map(process_bpmn,params ))
     print(" %d errors, %d sucess" % (len(os.listdir('./bpmns')) - success, success))
     # process_bpmn("Selbstbedienungrestaurant_7c7e418db39b48f082e9eb21d5524b10.bpmn")
