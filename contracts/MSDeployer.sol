@@ -9,11 +9,26 @@ contract Microservice {
         _dummy_array.push(0x01);
     }
     
-    function _run_instructions(uint instructions) public view {
-        uint j = 0;
-        for(uint i=0; i<=instructions; i++) {
-            j++;
+    function _run_instructions(uint limit) public view returns (uint){
+        uint256[9999] memory res;
+        uint resCounter = 0;
+        
+        for(uint256 i = 2; i < limit; i++) {
+            bool isPrime = true;
+            for(uint256 j = 2; j < i; j++) {
+                if(i % j == 0 && i != j) {
+                    isPrime = false;
+                    break;
+                }
+            }
+            
+            if(isPrime) {
+                res[resCounter] = i;
+                resCounter++;
+            }
         }
+        
+        return resCounter;
     }
 
     function _run_read(uint in_bytes_count) public view {
