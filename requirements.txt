@@ -46,6 +46,6 @@ smmap2==2.0.3
 subprocess32==3.5.4
 systemd-python==234
 tornado==4.5.3
-urllib3==1.22
+urllib3==1.24.2
 websocket-client==0.56.0
 
