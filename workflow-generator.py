@@ -120,6 +120,7 @@ def process_bpmn(params):
             host_config=random.choice(cluster_config)
             g.nodes[n]["url"] = "http://%s:8080"%host_config.get("ip","unknown")
             g.nodes[n]["host"] = host_config.get("host",None)
+            g.nodes[n]["brokerURL"] =  host_config.get("brokerURL",None)
 
         filename = ('.').join(file.split('.')[:-1])
 
