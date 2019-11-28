@@ -133,12 +133,12 @@ async function runBenchmark(microservices, benchInfo, file, idBench) {
 
     benchmarkDoneCount++;
 
-    csvWriterBench.writeRecords({
+    csvWriterBench.writeRecords([{
         timestamp: Date.now(),
         benchmark: file,
         time: (tEnd - tStart),
         benchmarkDoneCount: benchmarkDoneCount
-    });
+    }]);
 }
 
 async function runStep(elt, microservices, benchInfo, file, idBench) {
@@ -228,7 +228,7 @@ function monitorLoad(displayInConsole) {
         load["load_" + machine.ip] = machine.load;
     })
 
-    csvWriterLoad.writeRecords(load);
+    csvWriterLoad.writeRecords([load]);
 
     if(displayInConsole) {
         console.log(str);
