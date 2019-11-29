@@ -137,7 +137,7 @@ function initEthDatabase(conn, machine) {
 
 function launchNode(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('nohup geth --datadir "' + NODE_DIR + 'datadir" --networkid 61997 --nodekey ' + NODE_DIR + 'datadir/geth/nodekey --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password ' + NODE_DIR + 'password &>/dev/null --gasprice 0 --mine &', function(err) {
+        conn.exec('nohup geth --datadir "' + NODE_DIR + 'datadir" --networkid 61997 --nodekey ' + NODE_DIR + 'datadir/geth/nodekey --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password ' + NODE_DIR + 'password &>./var/log/geth.log --gasprice 0 --mine &', function(err) {
             if(err) {
                 console.error(err);
                 reject(false);
