@@ -98,7 +98,7 @@ function setupMachine(machine, i) {
 
 function setupDirectory(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('rm -rf ' + NODE_DIR + 'datadir ' + NODE_DIR + 'genesis.json ' + NODE_DIR + 'boot.key ' + NODE_DIR + 'password; mkdir -p ' + NODE_DIR + 'datadir/keystore ; mkdir -p ' + NODE_DIR + 'datadir/geth ; killall -9 geth', function(err, stream) {
+        conn.exec('sudo rm -rf ' + NODE_DIR + '* ; mkdir -p ' + NODE_DIR + 'datadir/keystore ; mkdir -p ' + NODE_DIR + 'datadir/geth ; pkill -9 geth; sudo rm /var/log/geth.log; sudo touch /var/log/geth.log; sudo chmod 777 /var/log/geth.log', function(err, stream) {
             if(err) {
                 console.error(err);
                 reject(false);
@@ -137,7 +137,7 @@ function initEthDatabase(conn, machine) {
 
 function launchNode(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('nohup geth --datadir "' + NODE_DIR + 'datadir" --networkid 61997 --nodekey ' + NODE_DIR + 'datadir/geth/nodekey --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin" --allow-insecure-unlock --unlock ' + machine.address + ' --password ' + NODE_DIR + 'password &>./var/log/geth.log --gasprice 0 --mine &', function(err) {
+        conn.exec('nohup geth --datadir "' + NODE_DIR + 'datadir" --networkid 61795847 --nodekey ' + NODE_DIR + 'datadir/geth/nodekey --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin,clique" --allow-insecure-unlock --unlock ' + machine.address + ' --password ' + NODE_DIR + 'password &>/var/log/geth.log --gasprice 0 --mine --nodiscover --syncmode "full" &', function(err) {
             if(err) {
                 console.error(err);
                 reject(false);

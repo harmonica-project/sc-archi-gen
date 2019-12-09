@@ -333,7 +333,7 @@ async function run() {
     createProvidersFromMachines();
     createResultRepIfNotDefined();
 
-    var inst = new machines[0].provider.eth.Contract(deployerABI.abi, deployerABI.networks["61997"].address);
+    var inst = new machines[0].provider.eth.Contract(deployerABI.abi, deployerABI.networks["61795847"].address);
 
     if(inst) {
         var files = fs.readdirSync('./graphs');

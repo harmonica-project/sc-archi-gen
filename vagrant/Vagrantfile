@@ -3,11 +3,11 @@
 
 # Every Vagrant development environment requires a box. You can search for
 # boxes at https://atlas.hashicorp.com/search.
-BOX_IMAGE = "ubuntu/trusty64"
+BOX_IMAGE = "ubuntu/xenial64"
 NODE_COUNT = 5
 
 Vagrant.configure("2") do |config|
-(1..NODE_COUNT).each do |i|
+  (1..NODE_COUNT).each do |i|
     config.vm.define "node#{i}" do |subconfig|
       subconfig.vm.box = BOX_IMAGE
       subconfig.vm.hostname = "node#{i}"
@@ -15,13 +15,14 @@ Vagrant.configure("2") do |config|
     end
 
     config.ssh.username = 'vagrant'
-    config.ssh.password = 'vagrant'
-    config.ssh.insert_key = false
     config.vm.provider "virtualbox" do |vb|
         vb.memory = "3072"
     end
 
+    config.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "~/.ssh/me.pub"
+
     config.vm.provision "shell", inline: <<-SHELL
+      cat /home/vagrant/.ssh/me.pub >> /home/vagrant/.ssh/authorized_keys
       sudo add-apt-repository -y ppa:ethereum/ethereum
       sudo apt-get update
       sudo apt-get install ethereum -y

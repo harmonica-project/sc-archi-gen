@@ -9,10 +9,10 @@ DEPLOYMENT_POOL_SPEED: 40
 BENCH_TASK_COMPLEXITY: 100
 
 #Number of blocks in seconds
-BLOCK_PERIOD: 1
+BLOCK_PERIOD: 0
 
 #Location of your SSH key for node access if needed
-SSH_KEY: '/root/.ssh/id_rsa'
+SSH_KEY: '/Users/nicolas/.ssh/id_rsa'
 
 #Working dir used in each node to install Ethereum
 NODE_WORKING_DIR: '/home/vagrant/'
