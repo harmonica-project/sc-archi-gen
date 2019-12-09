@@ -6,8 +6,7 @@ var ipList = []
 for(var i = 1; i <= nbNodes; i++) {
     ipList.push({
         ip: '10.0.0.' + (i + 10),
-        user: 'vagrant',
-        password: 'vagrant'
+        user: 'vagrant'
     })
 }
 
@@ -18,7 +17,7 @@ var truffleConfig = {
         infra: {
             host: "10.0.0.11",     
             port: 8545,            
-            network_id: 61997,       
+            network_id: 61795847,       
             gasLimit: "0x346DC5D638865",
             gasPrice: "0x0",
             },

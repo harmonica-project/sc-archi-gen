@@ -1,13 +1,13 @@
 {
   "config": {
-      "chainId": 61997,
+      "chainId": 61795847,
       "homesteadBlock": 0,
       "eip150Block": 0,
       "eip155Block": 0,
       "eip158Block": 0,
       "byzantiumBlock": 0,
       "clique": {
-          "period": 1,
+          "period": 0,
           "epoch": 30000
       }
   },
