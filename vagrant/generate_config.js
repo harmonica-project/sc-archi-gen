@@ -5,7 +5,7 @@ var ipList = []
 
 for(var i = 1; i <= nbNodes; i++) {
     ipList.push({
-        ip: '10.0.0.' + (i + 10),
+        ip: '10.0.0.' + (i*10 + 1),
         user: 'vagrant'
     })
 }
