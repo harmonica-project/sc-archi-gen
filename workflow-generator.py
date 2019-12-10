@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import uuid
 import json
 import os
 import random
@@ -118,16 +118,19 @@ def process_bpmn(params):
         for n in g.nodes:
 
             host_config=random.choice(cluster_config)
-            g.nodes[n]["url"] = "http://%s:8080"%host_config.get("ip","unknown")
+            g.nodes[n]["url"] = "http://%s:%d"%(host_config.get("ip","unknown"),host_config.get("port",8080))
             g.nodes[n]["host"] = host_config.get("host",None)
+            g.nodes[n]["brokerURL"] =  host_config.get("brokerURL",None)
 
         filename = ('.').join(file.split('.')[:-1])
 
         if not os.path.exists('./graphs/'):
             os.makedirs('./graphs/')
 
+        json_content=nx.node_link_data(g)
+        json_content["id"]=str(uuid.uuid4()) 
         with open('./graphs/' + filename + '.json', 'w+') as graph:
-            json.dump(nx.node_link_data(g), graph)
+            json.dump(json_content, graph)
 
         print((bcolors.OKGREEN + "%s done " + bcolors.ENDC) % file)
         return 1

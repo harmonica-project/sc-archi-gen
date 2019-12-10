@@ -1,32 +1,74 @@
-# -*- mode: ruby -*-
+# -*- mode: ruby -*-4
 # vi: set ft=ruby :
 
 # Every Vagrant development environment requires a box. You can search for
 # boxes at https://atlas.hashicorp.com/search.
 BOX_IMAGE = "ubuntu/xenial64"
-NODE_COUNT = 5
+
 
 Vagrant.configure("2") do |config|
-  (1..NODE_COUNT).each do |i|
-    config.vm.define "node#{i}" do |subconfig|
-      subconfig.vm.box = BOX_IMAGE
-      subconfig.vm.hostname = "node#{i}"
-      subconfig.vm.network :private_network, ip: "10.0.0.#{i + 10}"
-    end
 
-    config.ssh.username = 'vagrant'
-    config.vm.provider "virtualbox" do |vb|
-        vb.memory = "3072"
-    end
+  
+  config.vm.box = BOX_IMAGE
 
-    config.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "~/.ssh/me.pub"
-
-    config.vm.provision "shell", inline: <<-SHELL
-      cat /home/vagrant/.ssh/me.pub >> /home/vagrant/.ssh/authorized_keys
-      sudo add-apt-repository -y ppa:ethereum/ethereum
-      sudo apt-get update
-      sudo apt-get install ethereum -y
-      sudo apt-get install solc -y
-    SHELL
+  config.vm.provider "virtualbox" do |vb|
+      vb.memory = "4096"
   end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    sudo apt-get update
+    sudo apt-get install git curl --yes
+    wget -O bootstrap-salt.sh https://bootstrap.saltstack.com 
+  SHELL
+
+
+  config.vm.define "h0" do |h0|
+    h0.vm.hostname = "h0"
+
+    h0.vm.synced_folder "../Ethereum-Bench-stack", "/srv/"
+    h0.vm.network :private_network, ip: "10.0.0.11"
+
+      h0.vm.provision "shell", inline: <<-SHELL
+      bash ./bootstrap-salt.sh -x python3 -D -M -J '{"open_mode":true,"auto_accept":true,"file_roots":{"base":["/srv/salt","/srv/formulas/node-formula","/srv/formulas/docker-formula","/srv/formulas/monitoring-formula"]}}' -j '{"mine_functions":{"parity_authority":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","authority"],"datapath_ip":[{"mine_function":"network.ip_addrs"},"enp0s8"],"parity_enode":[{"mine_function":"paritymanager.get_enode"}],"parity_user":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","user"]},"mine_interval":1,"rejected_retry":true}'  -A 10.0.0.11
+  SHELL
+  end
+
+
+  config.vm.define "h1" do |h1|
+    h1.vm.hostname = "h1"
+    h1.vm.network :private_network, ip: "10.0.0.21"
+    h1.vm.provision "shell", inline: <<-SHELL
+    bash ./bootstrap-salt.sh -x python3 -D  -j '{"mine_functions":{"parity_authority":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","authority"],"datapath_ip":[{"mine_function":"network.ip_addrs"},"enp0s8"],"parity_enode":[{"mine_function":"paritymanager.get_enode"}],"parity_user":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","user"]},"mine_interval":1,"rejected_retry":true}'  -A 10.0.0.11
+  SHELL
+  end
+
+
+  config.vm.define "h2" do |h2|
+    h2.vm.hostname = "h2"
+    h2.vm.network :private_network, ip: "10.0.0.31"
+    h2.vm.provision "shell", inline: <<-SHELL
+    bash ./bootstrap-salt.sh -x python3 -D  -j '{"mine_functions":{"parity_authority":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","authority"],"datapath_ip":[{"mine_function":"network.ip_addrs"},"enp0s8"],"parity_enode":[{"mine_function":"paritymanager.get_enode"}],"parity_user":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","user"]},"mine_interval":1,"rejected_retry":true}'  -A 10.0.0.11
+  SHELL
+  end
+
+=begin
+  config.vm.define "h3" do |h3|
+    h3.vm.hostname = "h3"
+    h3.vm.network :private_network, ip: "10.0.0.41"
+    h3.vm.provision "shell", inline: <<-SHELL
+    bash ./bootstrap-salt.sh -x python3 -D  -j '{"mine_functions":{"parity_authority":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","authority"],"datapath_ip":[{"mine_function":"network.ip_addrs"},"enp0s8"],"parity_enode":[{"mine_function":"paritymanager.get_enode"}],"parity_user":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","user"]},"mine_interval":1,"rejected_retry":true}'  -A 10.0.0.11
+  SHELL
+  end
+
+
+  config.vm.define "h4" do |h4|
+    h4.vm.hostname = "h4"
+    h4.vm.network :private_network, ip: "10.0.0.51"
+    h4.vm.provision "shell", inline: <<-SHELL
+    bash ./bootstrap-salt.sh -x python3 -D  -j '{"mine_functions":{"parity_authority":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","authority"],"datapath_ip":[{"mine_function":"network.ip_addrs"},"enp0s8"],"parity_enode":[{"mine_function":"paritymanager.get_enode"}],"parity_user":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","user"]},"mine_interval":1,"rejected_retry":true}'  -A 10.0.0.11
+  SHELL
+  end
+=end
 end
+
+

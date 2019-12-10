@@ -1,0 +1,3 @@
+[submodule "Ethereum-Bench-stack"]
+	path = Ethereum-Bench-stack
+	url = git@github.com:nherbaut/Ethereum-Bench-stack.git

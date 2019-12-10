@@ -4,7 +4,7 @@ rm -rf ./benchmarks/*
 rm -rf ./graphs/*
 
 echo "Converting BPMNs to theirs JSON representations: "
-python workflow-generator.py
+python3 workflow-generator.py
 echo "Done."
 
 echo "Preparing specified servers ..."
