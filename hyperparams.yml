@@ -2,9 +2,6 @@
 #Speed of BPMN resolution coefficient time (n : number of bpmn benchmarked at the same moment)
 BENCH_POOL_SPEED: 20
 
-#Speed of BPMN microservices deployment (n : number of bpmn deployed at the same moment)
-DEPLOYMENT_POOL_SPEED: 40
-
 #Complexity of operations executed inside a microservice (dummy scale)
 BENCH_TASK_COMPLEXITY: 100
 

@@ -1,6 +1,5 @@
 #!/bin/bash
 echo "Cleaning old benchmark files ..."
-rm -rf ./benchmarks/*
 rm -rf ./graphs/*
 
 echo "Converting BPMNs to theirs JSON representations: "
