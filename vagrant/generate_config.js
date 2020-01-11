@@ -11,23 +11,3 @@ for(var i = 1; i <= nbNodes; i++) {
 }
 
 fs.writeFileSync("../ip_list.json", JSON.stringify(ipList));
-
-var truffleConfig = {
-    networks: {
-        infra: {
-            host: "10.0.0.11",     
-            port: 8545,            
-            network_id: 61795847,       
-            gasLimit: "0x346DC5D638865",
-            gasPrice: "0x0",
-            },
-        },
-  
-        compilers: {
-            solc: {
-                version: "0.5.0"
-            }
-        }
-    }
-
-    fs.writeFileSync("../truffle-config.js", 'module.exports = ' + JSON.stringify(truffleConfig));
