@@ -24,16 +24,12 @@ down() {
 }
 
 run() {
-    if [ "$1" = "--help" ]
-    then
-            displayCommandsRun
-            exit 0
-    elif [ "$1" = "" ]; then
-            echo "You must provide the duration of the benchmark in seconds."; displayCommandsRun; exit 1;
-    elif [ -n ${input//[0-9]/} ]; then
-            echo "Illegal argument provided for benchmarkDuration, you must provide the duration in seconds."; displayCommandsRun; exit 1;
-    elif [ "$1" < 1 ]; then
-            echo "Illegal argument provided for benchmarkDuration, should be greater than 0."; displayCommandsRun; exit 1;
+    if [[ "$1" == "--help" ]]; then
+        displayCommandsRun; exit 0;
+    elif [[ "$2" == "" ]]; then
+        echo "You must provide the duration of the benchmark in seconds."; displayCommandsRun; exit 1;
+    elif [[ "$2" < 1 ]]; then
+        echo "Illegal argument provided for benchmarkDuration, should be greater than 0."; displayCommandsRun; exit 1;
     fi 
 
     echo "Not implemented yet."

@@ -79,8 +79,8 @@ npm install
 Execute the following two commands to bring up the network then perform the experiment, with two respective parameters: contract name and benchmark time.
 
 ```
-./bench.sh up mycontract.sol
-./bench.sh run 300 
+./bench.sh up 
+./bench.sh run mycontract.sol 300 
 ```
 
 Results will be stored inside the *results* directory.

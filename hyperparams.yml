@@ -9,11 +9,8 @@ BENCH_TASK_COMPLEXITY: 100
 BLOCK_PERIOD: 0
 
 #Location of your SSH key for node access if needed
-SSH_KEY: '/Users/nicolas/.ssh/id_rsa'
+SSH_KEY: '/home/nicolas/.ssh/id_rsa'
 
 #Working dir used in each node to install Ethereum
 NODE_WORKING_DIR: '/home/vagrant/'
-
-#Seed for random task generator
-SEED: 666
 
