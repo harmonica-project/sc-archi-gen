@@ -1,14 +1,17 @@
 [
     {
         "name": "constructor",
+        "type": "send",
         "parameters": [5,10]
     },
     {
         "name": "setA",
+        "type": "send",
         "parameters": [7]
     },
     {
         "name": "getSum",
+        "type": "call",
         "parameters": []
     }
 ]

@@ -30,9 +30,11 @@ var execErrCount = 0;
 var opSuccessCount = 0;
 var opLaunchCount = 0;
 var benchmarkDoneCount = 0;
-var benchmarkContract = process.argv[2];
+var benchmarkContractFN = process.argv[2];
 var benchmarkDuration = process.argv[3];
 
+//tlog
+//- display a console.log string with time since the program started
 function tlog(str) {
     console.log('[' + performance.now() + '] ' + String(str));
 }
@@ -89,6 +91,8 @@ function monitorLoad(displayInConsole) {
     setTimeout(monitorLoad, 1000, displayInConsole);
 }
 
+//displayProgress
+//- display a counter of operations performed since the beginning
 function displayProgress(displayInConsole) {
     if(displayInConsole) {
         tlog("Tasks executed: " + opSuccessCount + "\n");
@@ -106,14 +110,15 @@ function createProvidersFromMachines() {
     }
 }
 
+//runWorkflow
+//- read a json file containing benchmark instructions, deploys linked smart-contract then perform each function at once
 async function runWorkflow(idBench) {
     var startTime = performance.now();
     var machineId = allocateTaskToMachine();
-    var scWorkflow = require("./contracts/" + benchmarkContract.split('.').slice(0, -1).join('.') + ".json")
+    var scWorkflow = require("./contracts/" + benchmarkContractFN.split('.').slice(0, -1).join('.') + ".json")
 
-    var BenchmarkContract = await deployContract(machineId, scWorkflow[0]);
+    var contract = await deployContract(machineId, scWorkflow[0]);
 
-    console.log(BenchmarkContract)
     for(var i = 1; i < scWorkflow.length; i++) {
         opLaunchCount++;
 
@@ -121,9 +126,9 @@ async function runWorkflow(idBench) {
         tlog(scWorkflow[i].name)
         console.log(...parameters)
 
-        await BenchmarkContract.methods[scWorkflow[i].name](...parameters).send({from: machines[machineId].address, gas: 9999999, gasPrice: 0})
+        await contract.methods[scWorkflow[i].name](...parameters)[scWorkflow[i].type]({from: machines[machineId].address, gas: '0x346DC5D638', gasPrice: '0x0'})
             .then(res => {
-                console.log(res);
+                console.log('Res : ' + res);
             });
     }
 
@@ -138,6 +143,8 @@ async function runWorkflow(idBench) {
     }])
 }
 
+//deployContract
+//- deploys a smart-contract
 async function deployContract(machineId, constructorDef) {
     // Compile the source code
     const input = {
@@ -146,32 +153,36 @@ async function deployContract(machineId, constructorDef) {
         settings: {
             outputSelection: {
                 '*': {
-                    '*': [ "abi", "evm.bytecode" ]
+                    '*': [ "*" ]
                 }
             }
         }
     }; 
 
-    input.sources[benchmarkContract] = {content: fs.readFileSync('./contracts/' + benchmarkContract, "UTF-8")};
+    input.sources[benchmarkContractFN] = {content: fs.readFileSync('./contracts/' + benchmarkContractFN, "UTF-8")};
 
     const output = JSON.parse(solc.compile(JSON.stringify(input)));
-    const bytecode = output.contracts[benchmarkContract][benchmarkContract.split('.').slice(0, -1).join('.')].evm.bytecode.object;
-    const abi = output.contracts[benchmarkContract][benchmarkContract.split('.').slice(0, -1).join('.')].abi;
+    const bytecode = output.contracts[benchmarkContractFN][benchmarkContractFN.split('.').slice(0, -1).join('.')].evm.bytecode.object;
+    const abi = output.contracts[benchmarkContractFN][benchmarkContractFN.split('.').slice(0, -1).join('.')].abi;
     const parameters = resolveParameters(constructorDef.parameters, machineId);
-
+    
     //Deploy the contract and return instance
-    var BenchmarkContract = await new machines[machineId]["provider"].eth.Contract(abi)
+    var contract = await new machines[machineId]["provider"].eth.Contract(abi)
 		.deploy({
 			data: '0x' + bytecode,
 			arguments: parameters
-		})
+        })
 		.send({
-			from: machines[machineId].address
+			from: machines[machineId].address,
+            gas: '0x346DC5D638',
+            gasPrice: '0x0'
         })
 
-    return BenchmarkContract;
+    return contract;
 }
 
+//resolveParameters
+//- takes workflow parameters and change them dynamically with new benchmark informations if needed
 function resolveParameters(params, machineId) {
     for(var i = 0; i < params.length; i++) {
         switch(params[i]) {
