@@ -11,5 +11,6 @@ ethereum/genesis.json
 truffle-config.js
 results/bench/*
 results/load/*
+reset_ssh_keys.sh
 graphs/*
 .DS_Store

@@ -1,0 +1,14 @@
+[
+    {
+        "name": "constructor",
+        "parameters": [5,10]
+    },
+    {
+        "name": "setA",
+        "parameters": [7]
+    },
+    {
+        "name": "getSum",
+        "parameters": []
+    }
+]

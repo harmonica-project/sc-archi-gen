@@ -33,6 +33,10 @@ var benchmarkDoneCount = 0;
 var benchmarkContract = process.argv[2];
 var benchmarkDuration = process.argv[3];
 
+function tlog(str) {
+    console.log('[' + performance.now() + '] ' + String(str));
+}
+
 //generateLoadHeader
 //- generate a header for saved CSV load files
 function generateLoadHeader() {
@@ -79,15 +83,15 @@ function monitorLoad(displayInConsole) {
     csvWriterLoad.writeRecords([load]);
 
     if(displayInConsole) {
-        console.log(str);
-        console.log('Deployment errors : ' + deploymentErrCount + ', execution errors : ' + execErrCount);
+        tlog(str);
+        tlog('Deployment errors : ' + deploymentErrCount + ', execution errors : ' + execErrCount);
     }
     setTimeout(monitorLoad, 1000, displayInConsole);
 }
 
 function displayProgress(displayInConsole) {
     if(displayInConsole) {
-        console.log("Microservices executed: " + opSuccessCount + "\n");
+        tlog("Tasks executed: " + opSuccessCount + "\n");
         setTimeout(displayProgress, 1000);
     }
 }
@@ -107,14 +111,20 @@ async function runWorkflow(idBench) {
     var machineId = allocateTaskToMachine();
     var scWorkflow = require("./contracts/" + benchmarkContract.split('.').slice(0, -1).join('.') + ".json")
 
-    var contract = await deployContract(machineId, scWorkflow[0]);
+    var BenchmarkContract = await deployContract(machineId, scWorkflow[0]);
 
-    console.log(contract)
-
+    console.log(BenchmarkContract)
     for(var i = 1; i < scWorkflow.length; i++) {
-        var parameters = resolveParameters(scWorkflow[i].parameters)
+        opLaunchCount++;
 
-        
+        var parameters = resolveParameters(scWorkflow[i].parameters, machineId);
+        tlog(scWorkflow[i].name)
+        console.log(...parameters)
+
+        await BenchmarkContract.methods[scWorkflow[i].name](...parameters).send({from: machines[machineId].address, gas: 9999999, gasPrice: 0})
+            .then(res => {
+                console.log(res);
+            });
     }
 
     var endTime = performance.now();
@@ -130,31 +140,43 @@ async function runWorkflow(idBench) {
 
 async function deployContract(machineId, constructorDef) {
     // Compile the source code
-    const input = fs.readFileSync('./contracts/' + benchmarkContract);
-    const output = solc.compile(input.toString(), 1);
-    const bytecode = output.contracts[Object.keys(output.contracts)[0]].bytecode;
-    const abi = JSON.parse(output.contracts[Object.keys(output.contracts)[0]].interface);
+    const input = {
+        language: 'Solidity',
+        sources: {},
+        settings: {
+            outputSelection: {
+                '*': {
+                    '*': [ "abi", "evm.bytecode" ]
+                }
+            }
+        }
+    }; 
+
+    input.sources[benchmarkContract] = {content: fs.readFileSync('./contracts/' + benchmarkContract, "UTF-8")};
+
+    const output = JSON.parse(solc.compile(JSON.stringify(input)));
+    const bytecode = output.contracts[benchmarkContract][benchmarkContract.split('.').slice(0, -1).join('.')].evm.bytecode.object;
+    const abi = output.contracts[benchmarkContract][benchmarkContract.split('.').slice(0, -1).join('.')].abi;
     const parameters = resolveParameters(constructorDef.parameters, machineId);
 
     //Deploy the contract and return instance
-    const deployedContract = await new machines[machineId]["provider"].eth.Contract(abi)
+    var BenchmarkContract = await new machines[machineId]["provider"].eth.Contract(abi)
 		.deploy({
 			data: '0x' + bytecode,
 			arguments: parameters
 		})
 		.send({
 			from: machines[machineId].address
-		});
+        })
 
-        console.log(deployedContract);
-        return deployedContract;
+    return BenchmarkContract;
 }
 
 function resolveParameters(params, machineId) {
     for(var i = 0; i < params.length; i++) {
         switch(params[i]) {
             case 'SENDER':
-                params[i] = machines[machineId].length;
+                params[i] = machines[machineId].address;
                 break;
         }
     }
@@ -193,11 +215,11 @@ async function run() {
     //benchmark promise generator
     var promiseProducer = function () {
         var benchmarkNow = performance.now();
-        if (benchmarkNow - duration*1000 > benchmarkStart && benchmarkDuration != 0) 
+        if (benchmarkNow - benchmarkDuration*1000 > benchmarkStart && benchmarkDuration != 0) 
             return null;
 
         idBench++;
-        console.log('Running benchmark number ' + idBench + '...');
+        tlog('Running benchmark number ' + idBench + '...');
         return runWorkflow(idBench);
     }
 
