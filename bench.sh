@@ -31,7 +31,7 @@ run() {
     elif [[ "$2" < 1 ]]; then
         echo "Illegal argument provided for benchmarkDuration, should be greater than 0."; displayCommandsRun; exit 1;
     fi 
-    
+
     echo "Running benchmark : "
     node run_benchmarks.js $1 $2
 
