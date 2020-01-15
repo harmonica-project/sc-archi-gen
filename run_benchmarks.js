@@ -88,7 +88,7 @@ function monitorLoad(displayInConsole) {
     if(displayInConsole) {
         tlog(str);
     }
-    setTimeout(monitorLoad, 1000, displayInConsole);
+    setTimeout(monitorLoad, 2000, displayInConsole);
 }
 
 //displayProgress
@@ -100,7 +100,7 @@ function displayProgress(displayInConsole) {
         tlog("Tasks successfully finished: " + opSuccessCount);
         tlog("Benchmarks done: " + benchmarkDoneCount);
         tlog("Benchmarks failed: " + benchmarkErrorCount);
-        setTimeout(displayProgress, 5000, displayInConsole);
+        setTimeout(displayProgress, 2000, displayInConsole);
         console.log('-----------------\n');
     }
 }
@@ -258,8 +258,6 @@ function runWorkflowWave(bmStartTime) {
 
     for(var i = 0; i< BENCH_POOL_SPEED; i++) {
         idBench++;
-        tlog('Running benchmark ' + idBench + ' ...'); 
-
         runWorkflow(idBench);
     }
 
