@@ -15,8 +15,10 @@ const csvWriterBench = createCsvWriter({
     header: [
         {id: 'timestamp', title: 'TIMESTAMP'},
         {id: 'benchmark', title: 'BENCHMARK'},
+        {id: 'success', title: 'SUCCESS'},
         {id: 'time', title: 'TIME'},
         {id: 'benchmarkDoneCount', title: 'BENCHMARK_DONE_COUNT'},
+        {id: 'benchmarkErrorCount', title: 'BENCHMARK_ERROR_COUNT'}
     ]
 });
 
@@ -25,11 +27,10 @@ const csvWriterLoad = createCsvWriter({
     header: generateLoadHeader()
 });
 
-var deploymentErrCount = 0;
-var execErrCount = 0;
 var opSuccessCount = 0;
 var opLaunchCount = 0;
 var benchmarkDoneCount = 0;
+var benchmarkErrorCount = 0;
 var benchmarkContractFN = process.argv[2];
 var benchmarkDuration = process.argv[3];
 
@@ -86,7 +87,6 @@ function monitorLoad(displayInConsole) {
 
     if(displayInConsole) {
         tlog(str);
-        tlog('Deployment errors : ' + deploymentErrCount + ', execution errors : ' + execErrCount);
     }
     setTimeout(monitorLoad, 1000, displayInConsole);
 }
@@ -95,8 +95,13 @@ function monitorLoad(displayInConsole) {
 //- display a counter of operations performed since the beginning
 function displayProgress(displayInConsole) {
     if(displayInConsole) {
-        tlog("Tasks executed: " + opSuccessCount + "\n");
-        setTimeout(displayProgress, 1000);
+        console.log('\n-----------------');
+        tlog("Tasks launched: " + opLaunchCount);
+        tlog("Tasks successfully finished: " + opSuccessCount);
+        tlog("Benchmarks done: " + benchmarkDoneCount);
+        tlog("Benchmarks failed: " + benchmarkErrorCount);
+        setTimeout(displayProgress, 5000, displayInConsole);
+        console.log('-----------------\n');
     }
 }
 
@@ -110,37 +115,92 @@ function createProvidersFromMachines() {
     }
 }
 
+function getPromiseTimeout(duration) {
+    return new Promise(function(resolve, reject) {
+        setTimeout(resolve, duration, false);
+    });
+}
+
 //runWorkflow
 //- read a json file containing benchmark instructions, deploys linked smart-contract then perform each function at once
 async function runWorkflow(idBench) {
+    var execResult = true;
     var startTime = performance.now();
     var machineId = allocateTaskToMachine();
     var scWorkflow = require("./contracts/" + benchmarkContractFN.split('.').slice(0, -1).join('.') + ".json")
 
-    var contract = await deployContract(machineId, scWorkflow[0]);
+    /*try {
+        var contract = await deployContract(machineId, scWorkflow[0]);
+    }
+    catch(e) {
+        execResult = false;
+    }*/
 
-    for(var i = 1; i < scWorkflow.length; i++) {
-        opLaunchCount++;
+    try {
+        var contractPromise = deployContract(machineId, scWorkflow[0]);
+        var timeoutPromise = getPromiseTimeout(10000);
 
-        var parameters = resolveParameters(scWorkflow[i].parameters, machineId);
-        tlog(scWorkflow[i].name)
-        console.log(...parameters)
+        execResult = await Promise.race([timeoutPromise, contractPromise]);
+    }
+    catch(e) {
+        console.log(e)
+        execResult = false;
+    }
 
-        await contract.methods[scWorkflow[i].name](...parameters)[scWorkflow[i].type]({from: machines[machineId].address, gas: '0x346DC5D638', gasPrice: '0x0'})
-            .then(res => {
-                console.log('Res : ' + res);
-            });
+
+    if(execResult) {
+        var contract = execResult;
+        
+        for(var i = 1; i < scWorkflow.length; i++) {
+            opLaunchCount++;
+    
+            var parameters = resolveParameters(scWorkflow[i].parameters, machineId);
+    
+            const timeout = getPromiseTimeout(10000);
+            const functionExec = contract.methods[scWorkflow[i].name](...parameters)[scWorkflow[i].type]({from: machines[machineId].address, gas: '0x346DC5D638', gasPrice: '0x0'});
+    
+            try {
+                execResult = await Promise.race([timeout, functionExec]);
+                if(!execResult) {
+                    break;
+                }
+                else {
+                    opSuccessCount++;
+                }
+            }
+            catch(e) {
+                console.log(e)
+                execResult = false;
+            }
+        }
     }
 
     var endTime = performance.now();
-    benchmarkDoneCount++;
 
-    csvWriterBench.writeRecords([{
-        timestamp: Date.now(),
-        benchmark: idBench,
-        time: (endTime - startTime),
-        benchmarkDoneCount: benchmarkDoneCount
-    }])
+    if(execResult) {
+        benchmarkDoneCount++;
+
+        csvWriterBench.writeRecords([{
+            timestamp: Date.now(),
+            benchmark: idBench,
+            success: true,
+            time: (endTime - startTime),
+            benchmarkDoneCount: benchmarkDoneCount,
+            benchmarkErrorCount: benchmarkErrorCount
+        }])
+    }
+    else {
+        benchmarkErrorCount++;
+
+        csvWriterBench.writeRecords([{
+            timestamp: Date.now(),
+            benchmark: idBench,
+            success: false,
+            time: (endTime - startTime),
+            benchmarkDoneCount: benchmarkDoneCount,
+            benchmarkErrorCount: benchmarkErrorCount
+        }])
+    }
 }
 
 //deployContract
@@ -217,7 +277,7 @@ function createResultRepIfNotDefined() {
 async function run() {
     createProvidersFromMachines();
     createResultRepIfNotDefined();
-    displayProgress(false);
+    displayProgress(true);
     monitorLoad(false);
 
     var idBench = 0;
@@ -230,7 +290,7 @@ async function run() {
             return null;
 
         idBench++;
-        tlog('Running benchmark number ' + idBench + '...');
+        //tlog('Running benchmark number ' + idBench + '...');
         return runWorkflow(idBench);
     }
 

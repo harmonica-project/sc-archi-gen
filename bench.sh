@@ -13,14 +13,17 @@ displayCommandsRun() {
 }
 
 up() {
-    echo "Preparing specified servers ..."
+    echo "Preparing specified nodes ..."
     node prepare_servers.js
 
     echo "Network online."
 }
 
 down() {
-    echo "Not implemented yet."
+    echo "Deleting files and killing process on nodes ..."
+    node clean_servers.js
+
+    echo "Network down."
 }
 
 run() {
@@ -33,7 +36,7 @@ run() {
     fi 
 
     echo "Running benchmark : "
-    node run_benchmarks.js $1 $2
+    node --max-old-space-size=8192 run_benchmarks.js $1 $2 
 
     echo "Done."
     pkill node

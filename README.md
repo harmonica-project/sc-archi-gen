@@ -8,10 +8,9 @@ This tool is derived from the master branch, in order to provide a functional pl
 
 ## Requirements
 
-- truffle (currently used here: 5.0.42)
-- node.js (currently used here: 10.16.3)
+- node.js (currently used here: 10.18)
 - npm (currently used here: 6.12.0)
-- solidity compiler (installed version should be 0.5.0 or higher)
+- solc (not all versions work, 0.5.0 is fine)
 - web3 (currently used here: 1.2.2)
 
 ## How to setup the project before running the benchmark
@@ -47,28 +46,7 @@ node generate_config.js {nbNodes}
 
 **If you're login with SSH instead of password, please don't put a password key/value inside this file, but instead, modify the global variable named SSH_KEY located inside *prepare_servers.js*. This variable represents the path of your SSH private key.**
 
-2. Create a file called truffle-config.js containing information about the blockchain. It will be used by Truffle to login later. For the host field, put the IP of your first node declared in the ip_list.json file:
-
-```
-module.exports = {
-    "networks":{
-        "infra":{
-            "host":"10.0.0.11",
-            "port":8545,
-            "network_id":61997,
-            "gasLimit":"0x346DC5D638865",
-            "gasPrice":"0x0"
-        }
-    },
-    "compilers":{
-        "solc":{
-            "version":"0.5.0"
-        }
-    }
-}
-```
-
-3. Finally, install required packages by typing:
+2. Install required packages by typing:
 
 ```
 npm install
