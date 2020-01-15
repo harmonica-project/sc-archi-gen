@@ -1,6 +1,6 @@
 
 #Speed of BPMN resolution coefficient time (n : number of bpmn benchmarked at the same moment)
-BENCH_POOL_SPEED: 50
+BENCH_POOL_SPEED: 3
 
 #Number of blocks in seconds
 BLOCK_PERIOD: 0
