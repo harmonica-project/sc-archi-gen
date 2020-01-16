@@ -1,5 +1,4 @@
 var machines = require('./ip_list.json');
-var PromisePool = require('es6-promise-pool')
 
 const Web3 = require('web3');
 const solc = require('solc');
@@ -33,6 +32,7 @@ var benchmarkDoneCount = 0;
 var benchmarkErrorCount = 0;
 var benchmarkContractFN = process.argv[2];
 var benchmarkDuration = process.argv[3];
+var idBench = 0;
 
 //tlog
 //- display a console.log string with time since the program started
@@ -88,7 +88,7 @@ function monitorLoad(displayInConsole) {
     if(displayInConsole) {
         tlog(str);
     }
-    setTimeout(monitorLoad, 1000, displayInConsole);
+    setTimeout(monitorLoad, 2000, displayInConsole);
 }
 
 //displayProgress
@@ -100,7 +100,7 @@ function displayProgress(displayInConsole) {
         tlog("Tasks successfully finished: " + opSuccessCount);
         tlog("Benchmarks done: " + benchmarkDoneCount);
         tlog("Benchmarks failed: " + benchmarkErrorCount);
-        setTimeout(displayProgress, 5000, displayInConsole);
+        setTimeout(displayProgress, 2000, displayInConsole);
         console.log('-----------------\n');
     }
 }
@@ -115,12 +115,6 @@ function createProvidersFromMachines() {
     }
 }
 
-function getPromiseTimeout(duration) {
-    return new Promise(function(resolve, reject) {
-        setTimeout(resolve, duration, false);
-    });
-}
-
 //runWorkflow
 //- read a json file containing benchmark instructions, deploys linked smart-contract then perform each function at once
 async function runWorkflow(idBench) {
@@ -129,39 +123,22 @@ async function runWorkflow(idBench) {
     var machineId = allocateTaskToMachine();
     var scWorkflow = require("./contracts/" + benchmarkContractFN.split('.').slice(0, -1).join('.') + ".json")
 
-    /*try {
+    try {
         var contract = await deployContract(machineId, scWorkflow[0]);
     }
     catch(e) {
         execResult = false;
-    }*/
-
-    try {
-        var contractPromise = deployContract(machineId, scWorkflow[0]);
-        var timeoutPromise = getPromiseTimeout(10000);
-
-        execResult = await Promise.race([timeoutPromise, contractPromise]);
     }
-    catch(e) {
-        console.log(e)
-        execResult = false;
-    }
-
 
     if(execResult) {
-        var contract = execResult;
-        
         for(var i = 1; i < scWorkflow.length; i++) {
             opLaunchCount++;
     
-            var parameters = resolveParameters(scWorkflow[i].parameters, machineId);
-    
-            const timeout = getPromiseTimeout(10000);
-            const functionExec = contract.methods[scWorkflow[i].name](...parameters)[scWorkflow[i].type]({from: machines[machineId].address, gas: '0x346DC5D638', gasPrice: '0x0'});
-    
             try {
-                execResult = await Promise.race([timeout, functionExec]);
-                if(!execResult) {
+                var parameters = resolveParameters(scWorkflow[i].parameters, machineId);
+                var execResult = await contract.methods[scWorkflow[i].name](...parameters)[scWorkflow[i].type]({from: machines[machineId].address, gas: '0x346DC5D638', gasPrice: '0x0'});
+            
+                if(!execResult.transactionHash) {
                     break;
                 }
                 else {
@@ -169,7 +146,6 @@ async function runWorkflow(idBench) {
                 }
             }
             catch(e) {
-                console.log(e)
                 execResult = false;
             }
         }
@@ -273,34 +249,30 @@ function createResultRepIfNotDefined() {
     }
 }
 
+//runWorkflowWave
+//- Run a certain amount of transaction per second
+function runWorkflowWave(bmStartTime) {
+    if(performance.now() - bmStartTime > benchmarkDuration*1000) {
+        process.exit(0);
+    }
+
+    for(var i = 0; i< BENCH_POOL_SPEED; i++) {
+        idBench++;
+        runWorkflow(idBench);
+    }
+
+    setTimeout(runWorkflowWave, 1000, bmStartTime);
+}
+
 //Main function
 async function run() {
     createProvidersFromMachines();
     createResultRepIfNotDefined();
     displayProgress(true);
     monitorLoad(false);
-
-    var idBench = 0;
-    var benchmarkStart = performance.now();
-
-    //benchmark promise generator
-    var promiseProducer = function () {
-        var benchmarkNow = performance.now();
-        if (benchmarkNow - benchmarkDuration*1000 > benchmarkStart && benchmarkDuration != 0) 
-            return null;
-
-        idBench++;
-        //tlog('Running benchmark number ' + idBench + '...');
-        return runWorkflow(idBench);
-    }
-
-    var pool = new PromisePool(promiseProducer, BENCH_POOL_SPEED);
-
-    // Start the pool.
-    var poolPromise = pool.start();
-    
-    // Wait for the pool to settle.
-    await poolPromise;
+        
+    var benchmarkStartTime = performance.now();
+    runWorkflowWave(benchmarkStartTime)
 }
 
 run();
