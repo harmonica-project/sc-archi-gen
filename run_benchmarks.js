@@ -28,8 +28,10 @@ const csvWriterLoad = createCsvWriter({
 
 var opSuccessCount = 0;
 var opLaunchCount = 0;
+var benchmarkLaunchedCount = 0;
 var benchmarkDoneCount = 0;
 var benchmarkErrorCount = 0;
+var benchmarkStartTime = 0;
 var benchmarkContractFN = process.argv[2];
 var benchmarkDuration = process.argv[3];
 var idBench = 0;
@@ -37,7 +39,7 @@ var idBench = 0;
 //tlog
 //- display a console.log string with time since the program started
 function tlog(str) {
-    console.log('[' + performance.now() + '] ' + String(str));
+    console.log('[' + (performance.now() - benchmarkStartTime) + '] ' + String(str));
 }
 
 //generateLoadHeader
@@ -98,6 +100,7 @@ function displayProgress(displayInConsole) {
         console.log('\n-----------------');
         tlog("Tasks launched: " + opLaunchCount);
         tlog("Tasks successfully finished: " + opSuccessCount);
+        tlog("Benchmarks launched: " + benchmarkLaunchedCount);
         tlog("Benchmarks done: " + benchmarkDoneCount);
         tlog("Benchmarks failed: " + benchmarkErrorCount);
         setTimeout(displayProgress, 2000, displayInConsole);
@@ -118,6 +121,7 @@ function createProvidersFromMachines() {
 //runWorkflow
 //- read a json file containing benchmark instructions, deploys linked smart-contract then perform each function at once
 async function runWorkflow(idBench) {
+    benchmarkLaunchedCount++;
     var execResult = true;
     var startTime = performance.now();
     var machineId = allocateTaskToMachine();
@@ -251,8 +255,11 @@ function createResultRepIfNotDefined() {
 
 //runWorkflowWave
 //- Run a certain amount of transaction per second
-function runWorkflowWave(bmStartTime) {
-    if(performance.now() - bmStartTime > benchmarkDuration*1000) {
+async function runWorkflowWave() {
+    setTimeout(runWorkflowWave, 1000);
+    
+    if(performance.now() - benchmarkStartTime > benchmarkDuration*1000) {
+        displayProgress(true);
         process.exit(0);
     }
 
@@ -260,8 +267,6 @@ function runWorkflowWave(bmStartTime) {
         idBench++;
         runWorkflow(idBench);
     }
-
-    setTimeout(runWorkflowWave, 1000, bmStartTime);
 }
 
 //Main function
@@ -271,8 +276,8 @@ async function run() {
     displayProgress(true);
     monitorLoad(false);
         
-    var benchmarkStartTime = performance.now();
-    runWorkflowWave(benchmarkStartTime)
+    benchmarkStartTime = performance.now();
+    runWorkflowWave()
 }
 
 run();
