@@ -5,12 +5,22 @@ const YAML = require('yaml');
 var Client = require('ssh2').Client;
 var machines = require('./ip_list.json');
 
-const SSH_KEY = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).SSH_KEY;
+const SSH_KEY = getSSHKey()
 const NODE_DIR = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).NODE_WORKING_DIR;
 
 async function setupMachines() {
     for(var i = 0; i < machines.length; i++) {
         await setupMachine(machines[i], i);
+    }
+}
+
+function getSSHKey() {
+    var SSHKeyConfigPath = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).SSH_KEY;
+    if(SSHKeyConfigPath != '') {
+        return SSHKeyConfigPath;
+    }
+    else {
+        return process.env.HOME + '/.ssh/id_rsa';
     }
 }
 
