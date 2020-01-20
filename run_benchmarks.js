@@ -8,6 +8,7 @@ const {performance} = require('perf_hooks');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 const BENCH_POOL_SPEED = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_POOL_SPEED;
+const VERBOSE = true;
 
 const csvWriterBench = createCsvWriter({
     path: './results/bench/res_' + Date.now() + '.csv',
@@ -28,16 +29,20 @@ const csvWriterLoad = createCsvWriter({
 
 var opSuccessCount = 0;
 var opLaunchCount = 0;
+var benchmarkLaunchedCount = 0;
 var benchmarkDoneCount = 0;
 var benchmarkErrorCount = 0;
+var benchmarkStartTime = 0;
 var benchmarkContractFN = process.argv[2];
 var benchmarkDuration = process.argv[3];
+var sharedBenchRes = [];
+var contractCode = buildContract();
 var idBench = 0;
 
 //tlog
 //- display a console.log string with time since the program started
 function tlog(str) {
-    console.log('[' + performance.now() + '] ' + String(str));
+    console.log('[' + (performance.now() - benchmarkStartTime) + '] ' + String(str));
 }
 
 //generateLoadHeader
@@ -73,33 +78,38 @@ function allocateTaskToMachine() {
 }
 
 //monitorLoad
-//- keep track of machines load, if displayInConsole = true display it inside the console too
-function monitorLoad(displayInConsole) {
-    var str = "Operation load by node:\n";
+//- store load res into a CSV file for monitoring
+async function writeLoadRes() {
     var load = {timestamp: Date.now()};
 
     machines.forEach(machine => {
-        str += machine.ip + ' => ' + machine.load + '\n';
         load["load_" + machine.ip] = machine.load;
     })
 
     csvWriterLoad.writeRecords([load]);
 
-    if(displayInConsole) {
-        tlog(str);
-    }
-    setTimeout(monitorLoad, 2000, displayInConsole);
+    setTimeout(writeLoadRes, 1000);
+}
+
+//writeBenchRes
+//- store bench res into a CSV file for monitoring
+async function writeBenchRes() {
+    csvWriterBench.writeRecords(sharedBenchRes);
+    sharedBenchRes = [];
+
+    setTimeout(writeBenchRes, 1000);
 }
 
 //displayProgress
 //- display a counter of operations performed since the beginning
-function displayProgress(displayInConsole) {
+async function displayProgress(displayInConsole) {
     if(displayInConsole) {
         console.log('\n-----------------');
         tlog("Tasks launched: " + opLaunchCount);
         tlog("Tasks successfully finished: " + opSuccessCount);
-        tlog("Benchmarks done: " + benchmarkDoneCount);
-        tlog("Benchmarks failed: " + benchmarkErrorCount);
+        tlog("Benchmarks functions launched: " + benchmarkLaunchedCount);
+        tlog("Benchmarks functions done: " + benchmarkDoneCount);
+        tlog("Benchmarks functions failed: " + benchmarkErrorCount);
         setTimeout(displayProgress, 2000, displayInConsole);
         console.log('-----------------\n');
     }
@@ -118,6 +128,7 @@ function createProvidersFromMachines() {
 //runWorkflow
 //- read a json file containing benchmark instructions, deploys linked smart-contract then perform each function at once
 async function runWorkflow(idBench) {
+    benchmarkLaunchedCount++;
     var execResult = true;
     var startTime = performance.now();
     var machineId = allocateTaskToMachine();
@@ -128,6 +139,7 @@ async function runWorkflow(idBench) {
     }
     catch(e) {
         execResult = false;
+        if (VERBOSE) tlog(e);
     }
 
     if(execResult) {
@@ -137,52 +149,53 @@ async function runWorkflow(idBench) {
             try {
                 var parameters = resolveParameters(scWorkflow[i].parameters, machineId);
                 var execResult = await contract.methods[scWorkflow[i].name](...parameters)[scWorkflow[i].type]({from: machines[machineId].address, gas: '0x346DC5D638', gasPrice: '0x0'});
-            
-                if(!execResult.transactionHash) {
-                    break;
+                
+                if(execResult.transactionHash || execResult) {
+                    opSuccessCount++;
                 }
                 else {
-                    opSuccessCount++;
+                    execResult = false;
+                    break;
                 }
             }
             catch(e) {
                 execResult = false;
+                if (VERBOSE) tlog(e);
             }
         }
     }
 
     var endTime = performance.now();
 
+    machines[machineId].load -= 1;
+
     if(execResult) {
         benchmarkDoneCount++;
 
-        csvWriterBench.writeRecords([{
+        sharedBenchRes.push({
             timestamp: Date.now(),
             benchmark: idBench,
             success: true,
             time: (endTime - startTime),
             benchmarkDoneCount: benchmarkDoneCount,
             benchmarkErrorCount: benchmarkErrorCount
-        }])
+        })
     }
     else {
         benchmarkErrorCount++;
 
-        csvWriterBench.writeRecords([{
+        sharedBenchRes.push({
             timestamp: Date.now(),
             benchmark: idBench,
             success: false,
             time: (endTime - startTime),
             benchmarkDoneCount: benchmarkDoneCount,
             benchmarkErrorCount: benchmarkErrorCount
-        }])
+        })
     }
 }
 
-//deployContract
-//- deploys a smart-contract
-async function deployContract(machineId, constructorDef) {
-    // Compile the source code
+function buildContract() {
     const input = {
         language: 'Solidity',
         sources: {},
@@ -198,14 +211,24 @@ async function deployContract(machineId, constructorDef) {
     input.sources[benchmarkContractFN] = {content: fs.readFileSync('./contracts/' + benchmarkContractFN, "UTF-8")};
 
     const output = JSON.parse(solc.compile(JSON.stringify(input)));
-    const bytecode = output.contracts[benchmarkContractFN][benchmarkContractFN.split('.').slice(0, -1).join('.')].evm.bytecode.object;
-    const abi = output.contracts[benchmarkContractFN][benchmarkContractFN.split('.').slice(0, -1).join('.')].abi;
+
+    return {
+        bytecode: output.contracts[benchmarkContractFN][benchmarkContractFN.split('.').slice(0, -1).join('.')].evm.bytecode.object,
+        abi: output.contracts[benchmarkContractFN][benchmarkContractFN.split('.').slice(0, -1).join('.')].abi
+    }
+}
+
+//deployContract
+//- deploys a smart-contract
+async function deployContract(machineId, constructorDef) {
+    // Compile the source code
+
     const parameters = resolveParameters(constructorDef.parameters, machineId);
     
     //Deploy the contract and return instance
-    var contract = await new machines[machineId]["provider"].eth.Contract(abi)
+    var contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi)
 		.deploy({
-			data: '0x' + bytecode,
+			data: '0x' + contractCode.bytecode,
 			arguments: parameters
         })
 		.send({
@@ -251,8 +274,11 @@ function createResultRepIfNotDefined() {
 
 //runWorkflowWave
 //- Run a certain amount of transaction per second
-function runWorkflowWave(bmStartTime) {
-    if(performance.now() - bmStartTime > benchmarkDuration*1000) {
+async function runWorkflowWave() {
+    setTimeout(runWorkflowWave, 1000);
+    
+    if(performance.now() - benchmarkStartTime > benchmarkDuration*1000) {
+        displayProgress(true);
         process.exit(0);
     }
 
@@ -260,8 +286,6 @@ function runWorkflowWave(bmStartTime) {
         idBench++;
         runWorkflow(idBench);
     }
-
-    setTimeout(runWorkflowWave, 1000, bmStartTime);
 }
 
 //Main function
@@ -269,10 +293,11 @@ async function run() {
     createProvidersFromMachines();
     createResultRepIfNotDefined();
     displayProgress(true);
-    monitorLoad(false);
+    writeLoadRes();
+    writeBenchRes();
         
-    var benchmarkStartTime = performance.now();
-    runWorkflowWave(benchmarkStartTime)
+    benchmarkStartTime = performance.now();
+    runWorkflowWave()
 }
 
 run();

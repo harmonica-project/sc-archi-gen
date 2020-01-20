@@ -1,6 +1,7 @@
 const execSync = require('child_process').execSync;
 const fs = require('fs');
 const YAML = require('yaml');
+const path = require('path');
 
 var Client = require('ssh2').Client;
 
@@ -8,7 +9,7 @@ var genesis = require('./ethereum/template_genesis.json');
 var machines = require('./ip_list.json');
 
 const BLOCK_PERIOD = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BLOCK_PERIOD;
-const SSH_KEY = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).SSH_KEY;
+const SSH_KEY = getSSHKey();
 const NODE_DIR = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).NODE_WORKING_DIR;
 
 async function setupMachines() {
@@ -16,6 +17,16 @@ async function setupMachines() {
         await setupMachine(machines[i], i);
     }
     console.log(machines)
+}
+
+function getSSHKey() {
+    var SSHKeyConfigPath = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).SSH_KEY;
+    if(SSHKeyConfigPath != '') {
+        return SSHKeyConfigPath;
+    }
+    else {
+        return process.env.HOME + '/.ssh/id_rsa';
+    }
 }
 
 function getMachineAddress(i) {

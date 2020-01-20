@@ -1,12 +1,12 @@
 
 #Speed of BPMN resolution coefficient time (n : number of bpmn benchmarked at the same moment)
-BENCH_POOL_SPEED: 3
+BENCH_POOL_SPEED: 50
 
 #Number of blocks in seconds
 BLOCK_PERIOD: 0
 
-#Location of your SSH key for node access if needed
-SSH_KEY: '/home/nicolas/.ssh/id_rsa'
+#Location of your SSH key for node access if needed: if left blank, will try to read '~/.ssh/id_rsa'
+SSH_KEY: ''
 
 #Working dir used in each node to install Ethereum
 NODE_WORKING_DIR: '/home/vagrant/'
