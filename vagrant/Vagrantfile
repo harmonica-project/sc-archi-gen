@@ -4,7 +4,7 @@
 # Every Vagrant development environment requires a box. You can search for
 # boxes at https://atlas.hashicorp.com/search.
 BOX_IMAGE = "ubuntu/bionic64"
-NODE_COUNT = 6
+NODE_COUNT = 3
 
 Vagrant.configure("2") do |config|
   (0..NODE_COUNT-1).each do |i|
