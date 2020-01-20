@@ -225,7 +225,7 @@ function transferEthFiles(conn, i) {
 
 ////////////////////////////////////////
 
-execSync('rm -rf ./ethereum/datadir/* ; mkdir ./ethereum/datadir/nodekeys');
+execSync('rm -rf ./ethereum/datadir/* ; mkdir ./ethereum/datadir ; mkdir ./ethereum/datadir/nodekeys');
 
 createEthFiles();
 setupMachines()
