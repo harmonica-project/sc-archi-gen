@@ -2,12 +2,12 @@
     {
         "name": "constructor",
         "type": "send",
-        "parameters": [5,10]
+        "parameters": ["RANDINT","RANDINT"]
     },
     {
         "name": "setA",
         "type": "send",
-        "parameters": [7]
+        "parameters": ["RANDINT"]
     },
     {
         "name": "getSum",

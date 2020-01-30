@@ -4,11 +4,15 @@ const Web3 = require('web3');
 const solc = require('solc');
 const YAML = require('yaml');
 const fs = require('fs');
+const Tx = require('ethereumjs-tx').Transaction
+const Common = require('ethereumjs-common').default;
 const {performance} = require('perf_hooks');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 const BENCH_POOL_SPEED = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_POOL_SPEED;
+const NB_ACCOUNTS = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).NB_ACCOUNTS;
 const VERBOSE = true;
+const INSTANT_STOP = false;
 
 const csvWriterBench = createCsvWriter({
     path: './results/bench/res_' + Date.now() + '.csv',
@@ -37,7 +41,18 @@ var benchmarkContractFN = process.argv[2];
 var benchmarkDuration = process.argv[3];
 var sharedBenchRes = [];
 var contractCode = buildContract();
+var accounts = [];
 var idBench = 0;
+var seed = 0;
+var displayFinishMessage = true;
+
+//randomWithSeed
+//- generates pseudo random numbers from an initial seed
+function randomWithSeed() {
+    seed++;
+    var x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+}
 
 //tlog
 //- display a console.log string with time since the program started
@@ -57,6 +72,14 @@ function generateLoadHeader() {
     }
 
     return header;
+}
+
+async function setAccounts(nb) {
+    for(var i = 0; i < nb; i++) {
+        var account = await machines[0].provider.eth.accounts.create();
+        account["nonce"] = 0;
+        accounts.push(account);
+    }
 }
 
 //allocateTaskToMachine
@@ -132,10 +155,11 @@ async function runWorkflow(idBench) {
     var execResult = true;
     var startTime = performance.now();
     var machineId = allocateTaskToMachine();
+    var accountId = Math.floor(randomWithSeed() * NB_ACCOUNTS);
     var scWorkflow = require("./contracts/" + benchmarkContractFN.split('.').slice(0, -1).join('.') + ".json")
 
     try {
-        var contract = await deployContract(machineId, scWorkflow[0]);
+        var contractReceipt = await deployContract(machineId, accountId, scWorkflow[0]);
     }
     catch(e) {
         execResult = false;
@@ -147,8 +171,14 @@ async function runWorkflow(idBench) {
             opLaunchCount++;
     
             try {
-                var parameters = resolveParameters(scWorkflow[i].parameters, machineId);
-                var execResult = await contract.methods[scWorkflow[i].name](...parameters)[scWorkflow[i].type]({from: machines[machineId].address, gas: '0x346DC5D638', gasPrice: '0x0'});
+                if(scWorkflow[i].type == 'send') {
+                    var execResult = await callContract(machineId, accountId, scWorkflow[i], contractReceipt.contractAddress);
+                }
+                else {
+                    var parameters = resolveParameters(scWorkflow[i].parameters, machineId);
+                    var contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi, contractReceipt.contractAddress);
+                    var execResult = await contract.methods[scWorkflow[i].name](...parameters).call();
+                }
                 
                 if(execResult.transactionHash || execResult) {
                     opSuccessCount++;
@@ -220,38 +250,83 @@ function buildContract() {
 
 //deployContract
 //- deploys a smart-contract
-async function deployContract(machineId, constructorDef) {
+async function deployContract(machineId, accountId, constructorDef) {
     // Compile the source code
-
     const parameters = resolveParameters(constructorDef.parameters, machineId);
     
     //Deploy the contract and return instance
-    var contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi)
-		.deploy({
-			data: '0x' + contractCode.bytecode,
-			arguments: parameters
-        })
-		.send({
-			from: machines[machineId].address,
-            gas: '0x346DC5D638',
-            gasPrice: '0x0'
-        })
+    const contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi)
+    const contractData = contract.deploy({data: '0x' + contractCode.bytecode, arguments: parameters});
 
-    return contract;
+    return await buildAndSendTx(machineId, accountId, contractData.encodeABI());
+}
+
+//deployContract
+//- deploys a smart-contract
+async function callContract(machineId, accountId, callInfo, contractAddress) {
+    // Compile the source code
+    var parameters = resolveParameters(callInfo.parameters, machineId);
+    
+    //Deploy the contract and return instance
+    const contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi)
+    const contractData = contract.methods[callInfo.name](...parameters);
+
+    return await buildAndSendTx(machineId, accountId, contractData.encodeABI(), contractAddress);
+}
+
+async function buildAndSendTx(machineId, accountId, data, contractAddress) {
+    const rawTx = {
+        nonce: machines[machineId]["provider"].utils.toHex(accounts[accountId].nonce),
+        gasPrice: machines[machineId]["provider"].utils.toHex(0),
+        gasLimit: machines[machineId]["provider"].utils.toHex(400000),
+        data: data
+    };
+
+    if(contractAddress) {
+        rawTx["to"] = contractAddress;
+    }
+
+    // In this example we create a transaction for a custom network.
+    //
+    // All of these network's params are the same than mainnets', except for name, chainId, and
+    // networkId, so we use the Common.forCustomChain method.
+    const customCommon = Common.forCustomChain(
+        'mainnet',
+        {
+            name: 'benchmarkNetwork',
+            networkId: machines[machineId]["provider"].utils.toHex(61795847),
+            chainId: machines[machineId]["provider"].utils.toHex(61795847),
+        },
+        'istanbul',
+        )
+
+    // Sign and serialize the transaction
+    const tx = new Tx(rawTx, { common: customCommon });
+    tx.sign(Buffer.from(accounts[accountId].privateKey.substring(2), 'hex'));
+    const serializedTx = tx.serialize();
+
+    accounts[accountId].nonce++;
+    return await machines[machineId]["provider"].eth.sendSignedTransaction('0x' + serializedTx.toString('hex'));
 }
 
 //resolveParameters
 //- takes workflow parameters and change them dynamically with new benchmark informations if needed
 function resolveParameters(params, machineId) {
+    var parsedParams = []
+
     for(var i = 0; i < params.length; i++) {
         switch(params[i]) {
             case 'SENDER':
-                params[i] = machines[machineId].address;
+                parsedParams[i] = machines[machineId].address;
+                break;
+
+            case 'RANDINT':
+                parsedParams[i] = parseInt(randomWithSeed()*1000000);
                 break;
         }
     }
 
-    return params;
+    return parsedParams;
 }
 
 //createResultRepIfNotDefined
@@ -278,13 +353,21 @@ async function runWorkflowWave() {
     setTimeout(runWorkflowWave, 1000);
     
     if(performance.now() - benchmarkStartTime > benchmarkDuration*1000) {
-        displayProgress(true);
-        process.exit(0);
+        if(INSTANT_STOP) {
+            displayProgress(true);
+            process.exit(0);
+        }
+        else {
+            if(displayFinishMessage)
+                tlog("All transactions have been sent, but the program keeps running to allow them to complete.")
+            displayFinishMessage = false;
+        }
     }
-
-    for(var i = 0; i< BENCH_POOL_SPEED; i++) {
-        idBench++;
-        runWorkflow(idBench);
+    else {
+        for(var i = 0; i< BENCH_POOL_SPEED; i++) {
+            idBench++;
+            runWorkflow(idBench);
+        }
     }
 }
 
@@ -292,12 +375,13 @@ async function runWorkflowWave() {
 async function run() {
     createProvidersFromMachines();
     createResultRepIfNotDefined();
+    await setAccounts(NB_ACCOUNTS);
     displayProgress(true);
     writeLoadRes();
     writeBenchRes();
         
     benchmarkStartTime = performance.now();
-    runWorkflowWave()
+    runWorkflowWave(true)
 }
 
 run();
