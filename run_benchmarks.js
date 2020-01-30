@@ -361,6 +361,7 @@ async function runWorkflowWave() {
             if(displayFinishMessage)
                 tlog("All transactions have been sent, but the program keeps running to allow them to complete.")
             displayFinishMessage = false;
+            getNonceSum();
         }
     }
     else {
@@ -369,6 +370,17 @@ async function runWorkflowWave() {
             runWorkflow(idBench);
         }
     }
+}
+
+async function getNonceSum() {
+    var sum = 0;
+
+    for(var i = 0; i < accounts.length; i++) {
+        var nonceCount = await machines[0]["provider"].eth.getTransactionCount(accounts.address);
+        sum+= nonceCount;
+    }
+
+    tlog('Somme des transactions : ' + sum);
 }
 
 //Main function
