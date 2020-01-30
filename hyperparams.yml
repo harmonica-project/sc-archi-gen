@@ -11,3 +11,7 @@ SSH_KEY: ''
 #Working dir used in each node to install Ethereum
 NODE_WORKING_DIR: '/home/vagrant/'
 
+
+#Used accounts in the benchmark
+NB_ACCOUNTS: 500
+
