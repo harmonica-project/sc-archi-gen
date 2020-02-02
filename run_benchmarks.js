@@ -383,7 +383,7 @@ async function getNonceSum() {
         }
     
         tlog('Transaction sum : ' + sum);
-        tlog('Average tx/s : ' + sum/(performance.now() - benchmarkStartTime));
+        tlog('Average tx/s : ' + 1000*sum/(performance.now() - benchmarkStartTime));
     }
     catch(e) {
         tlog('getNonceSum error: ' + e)
