@@ -358,10 +358,11 @@ async function runWorkflowWave() {
             process.exit(0);
         }
         else {
-            if(displayFinishMessage)
-                tlog("All transactions have been sent, but the program keeps running to allow them to complete.")
+            if(displayFinishMessage) {
+                tlog("All transactions have been sent, but the program keeps running to allow them to complete.");
+                getNonceSum();
+            }
             displayFinishMessage = false;
-            getNonceSum();
         }
     }
     else {
@@ -375,12 +376,18 @@ async function runWorkflowWave() {
 async function getNonceSum() {
     var sum = 0;
 
-    for(var i = 0; i < accounts.length; i++) {
-        var nonceCount = await machines[0]["provider"].eth.getTransactionCount(accounts.address);
-        sum+= nonceCount;
+    try {
+        for(var i = 0; i < accounts.length; i++) {
+            var nonceCount = await machines[0]["provider"].eth.getTransactionCount(accounts[i].address);
+            sum+= nonceCount;
+        }
+    
+        tlog('Transaction sum : ' + sum);
+        tlog('Average tx/s : ' + sum/(performance.now() - benchmarkStartTime));
     }
-
-    tlog('Somme des transactions : ' + sum);
+    catch(e) {
+        tlog('getNonceSum error: ' + e)
+    }
 }
 
 //Main function

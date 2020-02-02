@@ -148,7 +148,7 @@ function initEthDatabase(conn, machine) {
 
 function launchNode(conn, machine) {
     return new Promise(function(resolve, reject) {
-        conn.exec('nohup geth --datadir "' + NODE_DIR + 'datadir" --networkid 61795847 --nodekey ' + NODE_DIR + 'datadir/geth/nodekey --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin,clique,txpool" --allow-insecure-unlock --unlock ' + machine.address + ' --password ' + NODE_DIR + 'password &>/var/log/geth.log --gasprice 0 --mine --nodiscover --syncmode "full" --txpool.accountslots 1000000 --txpool.globalslots 1000000 --txpool.accountqueue 1000000 --txpool.globalqueue 1000000 &', function(err) {
+        conn.exec('nohup geth --datadir "' + NODE_DIR + 'datadir" --networkid 61795847 --nodekey ' + NODE_DIR + 'datadir/geth/nodekey --rpc --rpcport 8545 --rpcaddr ' + machine.ip + ' --rpccorsdomain "*" --rpcapi "eth,net,web3,personal,miner,admin,clique,txpool" --allow-insecure-unlock --unlock ' + machine.address + ' --password ' + NODE_DIR + 'password &>/var/log/geth.log --gasprice 0 --mine --nodiscover --syncmode "full" --txpool.accountslots 1000000 --txpool.globalslots 1000000 --txpool.accountqueue 1000000 --txpool.globalqueue 1000000 --miner.gaslimit 922337203685477 &', function(err) {
             if(err) {
                 console.error(err);
                 reject(false);
