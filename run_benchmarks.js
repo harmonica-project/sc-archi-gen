@@ -243,6 +243,8 @@ async function runWorkflow() {
     }
 }
 
+//buildContract
+//- use solc to compile a contract and store it (bytecode and ABI) in a global variable. 
 function buildContract() {
     const input = {
         language: 'Solidity',
@@ -377,6 +379,8 @@ async function runWorkflowWave() {
     }
 }
 
+//getWorkerNonceSum
+//- calculate the sum of all accounts nonce at worker scale
 async function getWorkerNonceSum() {
     var sum = 0;
 
@@ -393,6 +397,8 @@ async function getWorkerNonceSum() {
     }
 }
 
+//incrementVariable
+//- increment asked variable by one, used when a worker do something to keep that in account in the master thread
 function incrementVariable(variable) {
     switch(variable) {
         case 'benchmarkLaunchedCount':
@@ -417,6 +423,8 @@ function incrementVariable(variable) {
     }
 }
 
+//displayNonceSum
+//- asks workers for their nonce sum of all their accounts to sum them and get an accurate number of transaction performed. Response is displayed in another function
 function displayNonceSum() {
     nonceSums = [];
 
@@ -425,6 +433,8 @@ function displayNonceSum() {
     })
 }
 
+//handleWorkerMsg
+//- performs actions depending of the message sent from the worker to the master
 function handleWorkerMsg(msg, pid) {
     if(msg['inc']) {
         incrementVariable(msg['inc']);
@@ -464,6 +474,8 @@ function handleWorkerMsg(msg, pid) {
     }
 }
 
+//startBenchmark
+//- launch the benchmark by setting the clock to 0, sending signals to workers to start them and begin monitoring
 function startBenchmark() {
     benchmarkStartTime = performance.now();
     workers.forEach(worker => {
@@ -499,6 +511,7 @@ function handleMasterMsg(msg) {
 }
 
 //RUN
+//Launch 1 master thread and n worker threads depending of the number of cores on the machine. 
 if (cluster.isMaster) {
     tlog(`Master ${process.pid} is running`);
 
