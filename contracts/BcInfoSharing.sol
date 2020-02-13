@@ -58,7 +58,9 @@ contract BlockchainInformationSharing {
 
     modifier onlyAuthParty(address addr) {
         //Added to functions to ensure that the sender running the function is an authorized party
-        require(addrAuthorized(addr), "Sender not authorized to perform this operation.");
+
+        //REMOVED TO ALLOW BENCHMARK OF THIS CONTRACT
+        //require(addrAuthorized(addr), "Sender not authorized to perform this operation.");
         _;
     }
 

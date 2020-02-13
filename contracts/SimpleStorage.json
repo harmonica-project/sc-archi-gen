@@ -2,7 +2,8 @@
     {
         "name": "constructor",
         "type": "send",
-        "parameters": ["RANDINT","RANDINT"]
+        "parameters": ["RANDINT","RANDINT"],
+        "contractGeneration": "MULTIPLE"
     },
     {
         "name": "setA",

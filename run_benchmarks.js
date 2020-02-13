@@ -51,6 +51,10 @@ var benchmarkContractFN = process.argv[2];
 var benchmarkDuration = process.argv[3];
 var seed = 0;
 var contractCode = buildContract();
+var globalContractAddress = "";//Used if only one contract should be used instead of deploying many at each step of the benchmark
+
+//ALL THREADS
+var scWorkflow = require("./contracts/" + benchmarkContractFN.split('.').slice(0, -1).join('.') + ".json");
 var accounts = [];
 
 //randomWithSeed
@@ -181,7 +185,6 @@ async function runWorkflow() {
     var machineId = allocateTaskToMachine();
     process.send({incMachine: {id: machineId}});
     var accountId = Math.floor(randomWithSeed() * NB_ACCOUNTS);
-    var scWorkflow = require("./contracts/" + benchmarkContractFN.split('.').slice(0, -1).join('.') + ".json")
 
     try {
         var contractReceipt = await deployContract(machineId, accountId, scWorkflow[0]);
@@ -510,6 +513,19 @@ function handleMasterMsg(msg) {
     }
 }
 
+function forkWorkers(contractAddress) {
+    // Fork workers.
+    for (let i = 0; i < numCPUs - 1; i++) {
+        var worker = cluster.fork({contractAddress: contractAddress});
+
+        worker.on('message', function(msg) {
+            handleWorkerMsg(msg, this.pid);
+        });
+        
+        workers.push(worker);
+    }
+}
+
 //RUN
 //Launch 1 master thread and n worker threads depending of the number of cores on the machine. 
 if (cluster.isMaster) {
@@ -518,16 +534,18 @@ if (cluster.isMaster) {
     createProvidersFromMachines();
     createResultRepIfNotDefined();
 
-    // Fork workers.
-    for (let i = 0; i < numCPUs - 1; i++) {
-        var worker = cluster.fork();
-
-        worker.on('message', function(msg) {
-            handleWorkerMsg(msg, this.pid);
+    if(scWorkflow[0].contractGeneration == "UNIQUE") {
+        setAccounts(1).then(() => {
+            deployContract(0, 0, scWorkflow[0]).then((contractReceipt) => {
+                forkWorkers(contractReceipt.contractAddress);
+            })
         });
-        
-        workers.push(worker);
     }
+    else {
+        forkWorkers();
+    }
+
+
 
     cluster.on('exit', (worker) => {
         tlog(`Error : worker ${worker.process.pid} crashed.`);
@@ -536,6 +554,7 @@ if (cluster.isMaster) {
   } else {
     tlog(`Worker ${process.pid} started`);
 
+    console.log(process)
     createProvidersFromMachines();
 
     setAccounts(NB_ACCOUNTS).then(() => {
