@@ -9,9 +9,9 @@ const Common = require('ethereumjs-common').default;
 const {performance} = require('perf_hooks');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const cluster = require('cluster');
-const numCPUs = require('os').cpus().length;
+const numCPUs = 5;
 
-const BENCH_POOL_SPEED = parseInt((YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_POOL_SPEED)/(numCPUs - 1));
+const BENCH_POOL_SPEED = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_POOL_SPEED;
 const NB_ACCOUNTS = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).NB_ACCOUNTS;
 const VERBOSE = true;
 const INSTANT_STOP = false;
@@ -47,6 +47,7 @@ var nonceSums = [];
 var idBenchInc = 0;
 
 //WORKER VARIABLES
+var workerPoolSpeed = 0;
 var benchmarkContractFN = process.argv[2];
 var benchmarkDuration = process.argv[3];
 var seed = 0;
@@ -407,7 +408,7 @@ async function runWorkflowWave() {
     setTimeout(runWorkflowWave, 1000);
     
     if(performance.now() - benchmarkStartTime < benchmarkDuration*1000) {
-        for(var i = 0; i < BENCH_POOL_SPEED; i++) {
+        for(var i = 0; i < workerPoolSpeed; i++) {
             runWorkflow();
         }
     }
@@ -544,10 +545,35 @@ function handleMasterMsg(msg) {
     }
 }
 
+//allocateBenchSpeed
+//- allocates to each worker a pool speed to respect
+function allocateBenchSpeed() {
+    var poolSpeedLeft = BENCH_POOL_SPEED;
+    var workerPoolSpeeds = [];
+
+    for(var i = 0; i < numCPUs - 1; i++) {
+        workerPoolSpeeds.push(parseInt(BENCH_POOL_SPEED/(numCPUs - 1)));
+        poolSpeedLeft -= parseInt(BENCH_POOL_SPEED/(numCPUs - 1));
+    }
+
+    for(var i = 0; i < numCPUs - 1; i++) {
+        workerPoolSpeeds[i]++;
+        poolSpeedLeft--;
+        if(!poolSpeedLeft) break;
+    }
+
+    return workerPoolSpeeds;
+}
+
+//forkWorkers
+//- creates many workers as cpu - 1 with correct infos
 function forkWorkers(contractAddress) {
+    var workerPoolSpeeds = allocateBenchSpeed();
+
+    console.log(workerPoolSpeeds)
     // Fork workers.
     for (let i = 0; i < numCPUs - 1; i++) {
-        var worker = cluster.fork({contractAddress: contractAddress});
+        var worker = cluster.fork({contractAddress: contractAddress, workerPoolSpeed: workerPoolSpeeds[i]});
 
         worker.on('message', function(msg) {
             handleWorkerMsg(msg, this.process.pid);
@@ -586,7 +612,7 @@ if (cluster.isMaster) {
     tlog(`Worker ${process.pid} started`);
 
     globalContractAddress = process.env.contractAddress;
-
+    workerPoolSpeed = process.env.workerPoolSpeed;
     createProvidersFromMachines();
 
     setAccounts(NB_ACCOUNTS).then(() => {
