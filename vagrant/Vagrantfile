@@ -4,7 +4,7 @@
 # Every Vagrant development environment requires a box. You can search for
 # boxes at https://atlas.hashicorp.com/search.
 BOX_IMAGE = "ubuntu/bionic64"
-NODE_COUNT = 6
+NODE_COUNT = 3
 
 Vagrant.configure("2") do |config|
   (0..NODE_COUNT-1).each do |i|
@@ -23,12 +23,12 @@ Vagrant.configure("2") do |config|
       if i == 0
         subconfig.vm.provision "shell", inline: <<-SHELL
           
-          bash ./bootstrap-salt.sh -x python3 -D -M -J '{"open_mode":true,"auto_accept":true,"file_roots":{"base":["/srv/salt","/srv/formulas/node-formula","/srv/formulas/docker-formula","/srv/formulas/monitoring-formula"]}}' -j '{"mine_functions":{"parity_authority":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","authority"],"datapath_ip":[{"mine_function":"network.ip_addrs"},"enp0s8"],"parity_enode":[{"mine_function":"paritymanager.get_enode"}],"parity_user":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","user"]},"mine_interval":1,"rejected_retry":true}'  -A 10.0.0.11
+          bash ./bootstrap-salt.sh  -x python3 -D -M -J '{"open_mode":true,"auto_accept":true,"file_roots":{"base":["/srv/salt","/srv/formulas/node-formula","/srv/formulas/docker-formula","/srv/formulas/monitoring-formula"]}}' -j '{"mine_functions":{"parity_authority":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","authority"],"datapath_ip":[{"mine_function":"network.ip_addrs"},"enp0s8"],"parity_enode":[{"mine_function":"paritymanager.get_enode"}],"parity_user":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","user"]},"mine_interval":1,"rejected_retry":true}'  -A 10.0.0.11 stable 2019.2.3 
         SHELL
       else
         subconfig.vm.provision "shell", inline: <<-SHELL
           
-          bash ./bootstrap-salt.sh -x python3 -D  -j '{"mine_functions":{"parity_authority":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","authority"],"datapath_ip":[{"mine_function":"network.ip_addrs"},"enp0s8"],"parity_enode":[{"mine_function":"paritymanager.get_enode"}],"parity_user":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","user"]},"mine_interval":1,"rejected_retry":true}'  -A 10.0.0.11
+          bash ./bootstrap-salt.sh  -x python3 -D  -j '{"mine_functions":{"parity_authority":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","authority"],"datapath_ip":[{"mine_function":"network.ip_addrs"},"enp0s8"],"parity_enode":[{"mine_function":"paritymanager.get_enode"}],"parity_user":[{"mine_function":"paritymanager.get_accounts_by_meta"},"role","user"]},"mine_interval":1,"rejected_retry":true}'  -A 10.0.0.11 stable 2019.2.3 
         SHELL
       end
     end
