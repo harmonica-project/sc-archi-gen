@@ -557,9 +557,9 @@ function allocateBenchSpeed() {
     }
 
     for(var i = 0; i < numCPUs - 1; i++) {
+        if(!poolSpeedLeft) break;
         workerPoolSpeeds[i]++;
         poolSpeedLeft--;
-        if(!poolSpeedLeft) break;
     }
 
     return workerPoolSpeeds;
