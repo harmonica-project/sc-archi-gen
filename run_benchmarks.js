@@ -9,7 +9,7 @@ const Common = require('ethereumjs-common').default;
 const {performance} = require('perf_hooks');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const cluster = require('cluster');
-const numCPUs = 5;
+const numCPUs = require('os').cpus().length;
 
 const BENCH_POOL_SPEED = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).BENCH_POOL_SPEED;
 const NB_ACCOUNTS = YAML.parse(fs.readFileSync('./hyperparams.yml', 'utf8')).NB_ACCOUNTS;
@@ -570,7 +570,6 @@ function allocateBenchSpeed() {
 function forkWorkers(contractAddress) {
     var workerPoolSpeeds = allocateBenchSpeed();
 
-    console.log(workerPoolSpeeds)
     // Fork workers.
     for (let i = 0; i < numCPUs - 1; i++) {
         var worker = cluster.fork({contractAddress: contractAddress, workerPoolSpeed: workerPoolSpeeds[i]});
