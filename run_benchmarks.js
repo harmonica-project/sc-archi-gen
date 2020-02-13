@@ -51,7 +51,7 @@ var benchmarkContractFN = process.argv[2];
 var benchmarkDuration = process.argv[3];
 var seed = 0;
 var contractCode = buildContract();
-var globalContractAddress = "";//Used if only one contract should be used instead of deploying many at each step of the benchmark
+var globalContractAddress;//Used if only one contract should be used instead of deploying many at each step of the benchmark
 
 //ALL THREADS
 var scWorkflow = require("./contracts/" + benchmarkContractFN.split('.').slice(0, -1).join('.') + ".json");
@@ -186,12 +186,15 @@ async function runWorkflow() {
     process.send({incMachine: {id: machineId}});
     var accountId = Math.floor(randomWithSeed() * NB_ACCOUNTS);
 
-    try {
-        var contractReceipt = await deployContract(machineId, accountId, scWorkflow[0]);
-    }
-    catch(e) {
-        execResult = false;
-        if (VERBOSE) process.send({benchError: e});
+    if(!globalContractAddress) {
+        try {
+            var contractReceipt = await deployContract(machineId, accountId, scWorkflow[0]);
+            process.send({inc: 'opSuccessCount'});
+        }
+        catch(e) {
+            execResult = false;
+            if (VERBOSE) process.send({benchError: e});
+        }
     }
 
     if(execResult) {
@@ -200,11 +203,23 @@ async function runWorkflow() {
     
             try {
                 if(scWorkflow[i].type == 'send') {
-                    var execResult = await callContract(machineId, accountId, scWorkflow[i], contractReceipt.contractAddress);
+                    if(!globalContractAddress) {
+                        var execResult = await callContract(machineId, accountId, scWorkflow[i], contractReceipt.contractAddress);
+                    }
+                    else {
+                        var execResult = await callContract(machineId, accountId, scWorkflow[i], globalContractAddress);
+                    }
                 }
                 else {
                     var parameters = resolveParameters(scWorkflow[i].parameters, machineId);
-                    var contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi, contractReceipt.contractAddress);
+                    
+                    if(!globalContractAddress) {
+                        var contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi, contractReceipt.contractAddress);
+                    }
+                    else {
+                        var contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi, globalContractAddress);
+                    }
+
                     var execResult = await contract.methods[scWorkflow[i].name](...parameters).call();
                 }
                 
@@ -264,31 +279,35 @@ function buildContract() {
     input.sources[benchmarkContractFN] = {content: fs.readFileSync('./contracts/' + benchmarkContractFN, "UTF-8")};
 
     const output = JSON.parse(solc.compile(JSON.stringify(input)));
-
+    const contractName = Object.keys(output.contracts[benchmarkContractFN])[0]
     return {
-        bytecode: output.contracts[benchmarkContractFN][benchmarkContractFN.split('.').slice(0, -1).join('.')].evm.bytecode.object,
-        abi: output.contracts[benchmarkContractFN][benchmarkContractFN.split('.').slice(0, -1).join('.')].abi
+        bytecode: output.contracts[benchmarkContractFN][contractName].evm.bytecode.object,
+        abi: output.contracts[benchmarkContractFN][contractName].abi
     }
 }
 
 //deployContract
 //- deploys a smart-contract
 async function deployContract(machineId, accountId, constructorDef) {
-    // Compile the source code
-    const parameters = resolveParameters(constructorDef.parameters, machineId);
+    var parameters = [];
     
-    //Deploy the contract and return instance
+    if(constructorDef.parameters) {
+        var parameters = resolveParameters(constructorDef.parameters, machineId);
+    }
+
     const contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi)
     const contractData = contract.deploy({data: '0x' + contractCode.bytecode, arguments: parameters});
-
     return await buildAndSendTx(machineId, accountId, contractData.encodeABI());
 }
 
 //deployContract
-//- deploys a smart-contract
+//- call a smart-contract using a transaction
 async function callContract(machineId, accountId, callInfo, contractAddress) {
-    // Compile the source code
-    var parameters = resolveParameters(callInfo.parameters, machineId);
+    var parameters = [];
+    
+    if(callInfo.parameters) {
+        var parameters = resolveParameters(callInfo.parameters, machineId);
+    }
     
     //Deploy the contract and return instance
     const contract = await new machines[machineId]["provider"].eth.Contract(contractCode.abi)
@@ -301,7 +320,7 @@ async function buildAndSendTx(machineId, accountId, data, contractAddress) {
     const rawTx = {
         nonce: machines[machineId]["provider"].utils.toHex(accounts[accountId].nonce),
         gasPrice: machines[machineId]["provider"].utils.toHex(0),
-        gasLimit: machines[machineId]["provider"].utils.toHex(400000),
+        gasLimit: machines[machineId]["provider"].utils.toHex(5000000),
         data: data
     };
 
@@ -345,6 +364,18 @@ function resolveParameters(params, machineId) {
 
             case 'RANDINT':
                 parsedParams[i] = parseInt(randomWithSeed()*1000000);
+                break;
+
+            case 'RANDSTR':
+                parsedParams[i] = randomWithSeed().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                break;
+
+            case 'TIMESTAMP':
+                parsedParams[i] = Date.now();
+                break;
+
+            default:
+                parsedParams[i] = params[i];
                 break;
         }
     }
@@ -451,7 +482,7 @@ function handleWorkerMsg(msg, pid) {
         machines[msg['decMachine'].id].load -= 1;
     }
 
-    if(msg['benchError']) tlog('Error from worker ' + pid + ': ' + msg['benchError']);
+    if(msg['benchError']) tlog('Error from worker ' + pid + ': ' + JSON.stringify(msg['benchError']));
 
     if(msg['benchRes']) {
         msg['benchRes']['benchmarkDoneCount'] = benchmarkDoneCount;
@@ -519,7 +550,7 @@ function forkWorkers(contractAddress) {
         var worker = cluster.fork({contractAddress: contractAddress});
 
         worker.on('message', function(msg) {
-            handleWorkerMsg(msg, this.pid);
+            handleWorkerMsg(msg, this.process.pid);
         });
         
         workers.push(worker);
@@ -554,7 +585,8 @@ if (cluster.isMaster) {
   } else {
     tlog(`Worker ${process.pid} started`);
 
-    console.log(process)
+    globalContractAddress = process.env.contractAddress;
+
     createProvidersFromMachines();
 
     setAccounts(NB_ACCOUNTS).then(() => {

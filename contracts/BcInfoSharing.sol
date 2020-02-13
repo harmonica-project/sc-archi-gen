@@ -1,11 +1,11 @@
 pragma solidity >=0.5.0;
 pragma experimental ABIEncoderV2;
 
-contract BlockchainInformationSharing {
+contract BcInfoSharing {
     struct DataEntry {
         address publisher;
         string hashedData;
-        string timestamp;
+        uint40 timestamp;
         address[] authViewers;
     }
 
@@ -48,7 +48,7 @@ contract BlockchainInformationSharing {
         }
     }
 
-    function setDataEntry(string memory hashedData, string memory timestamp, address[] memory authViewers) public onlyAuthParty(msg.sender) {
+    function setDataEntry(string memory hashedData, uint40 timestamp, address[] memory authViewers) public onlyAuthParty(msg.sender) {
         //If authorized, adds data to contract data storage
         dataEntries[hashedData] = DataEntry(msg.sender, hashedData, timestamp, authViewers);
 

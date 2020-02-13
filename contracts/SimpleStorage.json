@@ -3,7 +3,7 @@
         "name": "constructor",
         "type": "send",
         "parameters": ["RANDINT","RANDINT"],
-        "contractGeneration": "MULTIPLE"
+        "contractGeneration": "UNIQUE"
     },
     {
         "name": "setA",

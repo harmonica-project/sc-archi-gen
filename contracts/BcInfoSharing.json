@@ -3,5 +3,18 @@
         "name": "constructor",
         "type": "send",
         "contractGeneration": "UNIQUE"
+    },
+    {
+        "name": "setDataEntry",
+        "type": "send",
+        "parameters": [
+            "RANDSTR",
+            "TIMESTAMP",
+            [
+                "0x0000000000000000000000000000000000000000",
+                "0x0000000000000000000000000000000000000001",
+                "0x0000000000000000000000000000000000000002"
+            ]
+        ]
     }
 ]
